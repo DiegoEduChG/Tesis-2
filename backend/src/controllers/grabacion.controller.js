@@ -7,29 +7,8 @@
 const modelo = require('../models/grabacion.model');
 const almacenamiento = require('../services/almacenamiento');
 const { validarWav } = require('../utils/validarWav');
+const { generarNombreArchivo } = require('../utils/nombreArchivo');
 const { CODIGOS, enviarError } = require('../utils/errores');
-
-/**
- * Genera el nombre de archivo estándar:
- *   {lengua}-{idMetadatos}-{AAAAMMDD}-{HHMMSS}.wav
- *
- * Se usa id_metadatos y no el DNI del hablante: el nombre del archivo
- * viaja dentro del corpus exportado, que se distribuye bajo licencia
- * abierta, y el DNI es un dato personal identificable protegido por la
- * Ley N.º 29733.
- */
-function generarNombreArchivo(lengua, idMetadatos) {
-  const ahora = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-
-  const fecha = `${ahora.getFullYear()}${pad(ahora.getMonth() + 1)}${pad(ahora.getDate())}`;
-  const hora = `${pad(ahora.getHours())}${pad(ahora.getMinutes())}${pad(ahora.getSeconds())}`;
-  const lenguaSlug = lengua.toLowerCase().normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')  // quita tildes
-    .replace(/[^a-z0-9]/g, '');
-
-  return `${lenguaSlug}-${idMetadatos}-${fecha}-${hora}.wav`;
-}
 
 // ---------------------------------------------------------------------
 // POST /api/grabaciones     (DDS 3.4.4.4)

@@ -2,10 +2,17 @@
 //
 // Implementa el flujo 3.2.2 del DDS ("Transcripción de Audio"):
 //   1. Se presenta un campo de texto.
-//   2. Mientras el hablante escribe, se autoguarda en IndexedDB
-//      (protege el trabajo ante un cierre accidental).
+//   2. Mientras el hablante escribe, se autoguarda en IndexedDB.
 //   3. Al presionar "Continuar", se envía al backend y se pasa a la
 //      interfaz de grabación con el id_transcripcion obtenido.
+//
+// Comportamiento sin conexión:
+// el enunciado NO se envía al servidor. Se conserva en memoria y viaja
+// junto con el audio cuando se sincroniza la contribución completa, tal
+// como espera el endpoint de sincronización del DDS (§3.4.4.7), que
+// recibe texto y audio en una sola petición y crea ambos registros.
+// Intentar persistir el enunciado por separado sin conexión dejaría al
+// hablante bloqueado en esta pantalla.
 
 import { useEffect, useRef, useState } from 'react';
 import { crear } from '../services/transcripcionesService';
@@ -26,9 +33,6 @@ export default function RedactarEnunciado({ idMetadatos, onEnunciadoListo }) {
 
   const temporizadorAutoguardado = useRef(null);
 
-  // Al montar, recupera un borrador anterior si existe (por ejemplo,
-  // si el hablante cerró la pestaña por accidente a mitad de la
-  // redacción).
   useEffect(() => {
     obtenerBorrador(idMetadatos).then((borrador) => {
       if (borrador?.texto) {
@@ -39,8 +43,7 @@ export default function RedactarEnunciado({ idMetadatos, onEnunciadoListo }) {
   }, [idMetadatos]);
 
   // Autoguardado con debounce: espera a que el hablante deje de
-  // escribir por un momento antes de persistir, en vez de guardar en
-  // cada tecla presionada.
+  // escribir antes de persistir, en vez de guardar en cada tecla.
   function manejarCambioTexto(evento) {
     const valor = evento.target.value;
     setTexto(valor);
@@ -53,6 +56,23 @@ export default function RedactarEnunciado({ idMetadatos, onEnunciadoListo }) {
     temporizadorAutoguardado.current = setTimeout(() => {
       guardarBorrador(idMetadatos, valor);
     }, RETRASO_AUTOGUARDADO_MS);
+  }
+
+  /**
+   * Continúa sin persistir el enunciado en el servidor. El objeto
+   * resultante no tiene id_transcripcion: esa es la señal de que la
+   * contribución deberá guardarse completa en el almacenamiento local
+   * y crearse en el servidor durante la sincronización.
+   *
+   * El borrador se conserva a propósito: si el hablante abandona antes
+   * de grabar, su texto no se pierde.
+   */
+  function continuarSinConexion(textoLimpio) {
+    onEnunciadoListo({
+      id_transcripcion: null,
+      texto_transcripcion: textoLimpio,
+      pendienteDeSincronizar: true,
+    });
   }
 
   async function manejarEnvio(evento) {
@@ -71,6 +91,12 @@ export default function RedactarEnunciado({ idMetadatos, onEnunciadoListo }) {
       return;
     }
 
+    // Sin conexión conocida: ni se intenta la petición.
+    if (!navigator.onLine) {
+      continuarSinConexion(textoLimpio);
+      return;
+    }
+
     setCargando(true);
     try {
       const creado = await crear({
@@ -84,7 +110,15 @@ export default function RedactarEnunciado({ idMetadatos, onEnunciadoListo }) {
 
       onEnunciadoListo(creado);
     } catch (err) {
-      setError(err.message);
+      // Un fallo de red llega sin código de error del sistema. En ese
+      // caso se continúa en modo local en lugar de bloquear al
+      // hablante; un rechazo legítimo del servidor (enunciado vacío,
+      // hablante inexistente) sí se muestra como error.
+      if (!err.codigo) {
+        continuarSinConexion(textoLimpio);
+      } else {
+        setError(err.message);
+      }
     } finally {
       setCargando(false);
     }

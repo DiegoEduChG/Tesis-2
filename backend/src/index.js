@@ -17,6 +17,7 @@ const { CODIGOS, enviarError } = require('./utils/errores');
 const metadatosRoutes = require('./routes/metadatos.routes');
 const transcripcionRoutes = require('./routes/transcripcion.routes');
 const grabacionRoutes = require('./routes/grabacion.routes');
+const sincronizacionRoutes = require('./routes/sincronizacion.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -58,6 +59,7 @@ app.get('/api/salud', async (req, res) => {
 app.use('/api/metadatos', metadatosRoutes);
 app.use('/api/transcripciones', transcripcionRoutes);
 app.use('/api/grabaciones', grabacionRoutes);
+app.use('/api/sincronizacion', sincronizacionRoutes);
 
 // ---------------------------------------------------------------------
 // Ruta no encontrada

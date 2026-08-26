@@ -1,18 +1,24 @@
 // frontend/src/pages/GrabarVoz.jsx
 //
-// Implementa el flujo 3.2.3 del DDS ("Grabación de Audio"): presenta el
-// enunciado, captura la voz del hablante, permite autoevaluarla
-// (Escuchar / Guardar / Volver a grabar) y la envía al backend.
-//
-// La opción de volver a grabar constituye el primer filtro de calidad
-// del corpus, ejercido por el propio contribuyente antes de que la
-// grabación llegue a la validación comunitaria.
+// Implementa el flujo 3.2.3 del DDS ("Grabación de Audio"), incluido su
+// flujo alternativo "Grabación en modo offline": si al guardar no hay
+// conexión, la contribución se conserva en IndexedDB y se marca como
+// pendiente de sincronización.
 
 import { useState } from 'react';
 import { useGrabadorAudio } from '../hooks/useGrabadorAudio';
 import { subir } from '../services/grabacionesService';
+import {
+  guardarContribucionPendiente,
+  eliminarBorrador,
+} from '../services/almacenamientoLocal';
 
-export default function GrabarVoz({ idMetadatos, transcripcion, onGrabacionLista }) {
+export default function GrabarVoz({
+  idMetadatos,
+  transcripcion,
+  onGrabacionLista,
+  onGuardadaLocalmente,
+}) {
   const {
     estado,
     audioUrl,
@@ -27,11 +33,41 @@ export default function GrabarVoz({ idMetadatos, transcripcion, onGrabacionLista
   const [subiendo, setSubiendo] = useState(false);
   const [errorSubida, setErrorSubida] = useState(null);
 
+  async function guardarLocalmente() {
+    await guardarContribucionPendiente({
+      idMetadatos,
+      texto: transcripcion.texto_transcripcion,
+      wavBlob,
+    });
+
+    // La contribución completa ya está a salvo en IndexedDB: el
+    // borrador del enunciado, que se conservaba por si el hablante
+    // abandonaba antes de grabar, deja de ser necesario.
+    await eliminarBorrador(idMetadatos);
+
+    onGuardadaLocalmente({
+      texto_transcripcion: transcripcion.texto_transcripcion,
+      duracionSegundos,
+    });
+  }
+
   async function manejarGuardar() {
     setErrorSubida(null);
     setSubiendo(true);
 
     try {
+      // Se guarda localmente en dos situaciones:
+      //   - No hay conexión.
+      //   - El enunciado nunca llegó al servidor (se redactó sin
+      //     conexión), por lo que no existe un id_transcripcion al que
+      //     asociar la grabación. En ese caso la contribución completa
+      //     debe crearse a través del endpoint de sincronización,
+      //     aunque en este momento sí haya red.
+      if (!navigator.onLine || !transcripcion.id_transcripcion) {
+        await guardarLocalmente();
+        return;
+      }
+
       const resultado = await subir({
         idMetadatos,
         idTranscripcion: transcripcion.id_transcripcion,
@@ -39,12 +75,23 @@ export default function GrabarVoz({ idMetadatos, transcripcion, onGrabacionLista
       });
       onGrabacionLista(resultado);
     } catch (err) {
-      // El backend detalla el motivo exacto cuando rechaza el formato
-      // (por ejemplo, frecuencia de muestreo incorrecta). Mostrarlo
-      // ayuda a diagnosticar problemas de compatibilidad entre
-      // navegadores durante las pruebas del OE2.
-      const detalle = err.detalles?.[0]?.problema;
-      setErrorSubida(detalle ? `${err.message} ${detalle}` : err.message);
+      // Un fallo de red (servidor caído, wifi que se corta a mitad del
+      // envío) llega aquí como TypeError sin código de error del
+      // sistema. En ese caso también se conserva la contribución en
+      // lugar de perderla.
+      const esFalloDeRed = !err.codigo;
+
+      if (esFalloDeRed) {
+        try {
+          await guardarLocalmente();
+          return;
+        } catch {
+          setErrorSubida('No se pudo guardar la grabación ni enviarla al servidor.');
+        }
+      } else {
+        const detalle = err.detalles?.[0]?.problema;
+        setErrorSubida(detalle ? `${err.message} ${detalle}` : err.message);
+      }
     } finally {
       setSubiendo(false);
     }
