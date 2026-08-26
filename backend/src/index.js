@@ -1,15 +1,19 @@
 // backend/src/index.js
 //
 // Punto de entrada del backend de NampiVoz.
-// Por ahora solo expone GET /api/salud, que confirma que el servidor
-// está corriendo y que la conexión a la base de datos MySQL funciona.
-// Los controladores de metadatos, transcripciones, grabaciones y votos
-// se agregan sobre esta misma base en las siguientes tareas del OE2 y OE3.
+//
+// Rutas disponibles:
+//   GET  /api/salud             Verificación de servidor y base de datos
+//   GET  /api/metadatos/:dni    Consultar hablante por DNI      (DDS 3.4.4.1)
+//   POST /api/metadatos         Registrar hablante              (DDS 3.4.4.2)
 
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const pool = require('./config/db');
+const { CODIGOS, enviarError } = require('./utils/errores');
+
+const metadatosRoutes = require('./routes/metadatos.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,11 +21,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// GET /api/salud
-// Verifica que el servidor responde y que puede consultar la base de
-// datos. Útil para descartar problemas de configuración (.env mal
-// escrito, credenciales incorrectas, servicio MySQL detenido) antes de
-// empezar a depurar la lógica de negocio.
+// ---------------------------------------------------------------------
+// Verificación de salud
+// ---------------------------------------------------------------------
 app.get('/api/salud', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT 1 AS ok');
@@ -33,12 +35,30 @@ app.get('/api/salud', async (req, res) => {
   } catch (error) {
     console.error('Error al conectar con la base de datos:', error.message);
 
-    res.status(503).json({
-      error: true,
-      codigo: 'ERROR_BASE_DE_DATOS',
-      mensaje: 'No fue posible conectar con la base de datos.',
-    });
+    return enviarError(
+      res,
+      503,
+      CODIGOS.ERROR_INTERNO,
+      'No fue posible conectar con la base de datos.'
+    );
   }
+});
+
+// ---------------------------------------------------------------------
+// Módulos del sistema
+// ---------------------------------------------------------------------
+app.use('/api/metadatos', metadatosRoutes);
+
+// ---------------------------------------------------------------------
+// Ruta no encontrada
+// ---------------------------------------------------------------------
+app.use((req, res) => {
+  return enviarError(
+    res,
+    404,
+    CODIGOS.RECURSO_NO_ENCONTRADO,
+    'La ruta solicitada no existe.'
+  );
 });
 
 app.listen(PORT, () => {
