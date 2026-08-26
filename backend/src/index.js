@@ -14,6 +14,7 @@ const pool = require('./config/db');
 const { CODIGOS, enviarError } = require('./utils/errores');
 
 const metadatosRoutes = require('./routes/metadatos.routes');
+const transcripcionRoutes = require('./routes/transcripcion.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,7 @@ app.get('/api/salud', async (req, res) => {
 // Módulos del sistema
 // ---------------------------------------------------------------------
 app.use('/api/metadatos', metadatosRoutes);
+app.use('/api/transcripciones', transcripcionRoutes);
 
 // ---------------------------------------------------------------------
 // Ruta no encontrada
