@@ -8,6 +8,7 @@
 //   POST /api/metadatos         Registrar hablante              (DDS 3.4.4.2)
 
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const pool = require('./config/db');
@@ -15,12 +16,18 @@ const { CODIGOS, enviarError } = require('./utils/errores');
 
 const metadatosRoutes = require('./routes/metadatos.routes');
 const transcripcionRoutes = require('./routes/transcripcion.routes');
+const grabacionRoutes = require('./routes/grabacion.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Sirve los archivos de audio guardados por el servicio de
+// almacenamiento local (ver services/almacenamiento.js). Cuando se
+// migre a AWS S3, esta línea deja de ser necesaria.
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // ---------------------------------------------------------------------
 // Verificación de salud
@@ -50,6 +57,7 @@ app.get('/api/salud', async (req, res) => {
 // ---------------------------------------------------------------------
 app.use('/api/metadatos', metadatosRoutes);
 app.use('/api/transcripciones', transcripcionRoutes);
+app.use('/api/grabaciones', grabacionRoutes);
 
 // ---------------------------------------------------------------------
 // Ruta no encontrada

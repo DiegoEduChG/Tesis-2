@@ -21,6 +21,12 @@ const CODIGOS = {
   SIN_DATOS_PARA_EXPORTAR: 'SIN_DATOS_PARA_EXPORTAR',
   ERROR_ALMACENAMIENTO: 'ERROR_ALMACENAMIENTO',
   ERROR_INTERNO: 'ERROR_INTERNO',
+
+  // --- Códigos añadidos durante la implementación del OE2 ---
+  // PENDIENTE: incorporar a la tabla del DDS §3.4.2.1 para que el
+  // documento y el comportamiento real de la API sigan coincidiendo.
+  GRABACION_YA_EXISTE: 'GRABACION_YA_EXISTE',
+  AUDIO_NO_RECIBIDO: 'AUDIO_NO_RECIBIDO',
 };
 
 /**
