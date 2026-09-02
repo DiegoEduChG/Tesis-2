@@ -27,6 +27,7 @@ const CODIGOS = {
   // documento y el comportamiento real de la API sigan coincidiendo.
   GRABACION_YA_EXISTE: 'GRABACION_YA_EXISTE',
   AUDIO_NO_RECIBIDO: 'AUDIO_NO_RECIBIDO',
+  AUTOVOTO_NO_PERMITIDO: 'AUTOVOTO_NO_PERMITIDO',
 };
 
 /**

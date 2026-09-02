@@ -7,21 +7,25 @@
 const express = require('express');
 const multer = require('multer');
 const controlador = require('../controllers/grabacion.controller');
+const validacionControlador = require('../controllers/validacion.controller');
 const { CODIGOS, enviarError } = require('../utils/errores');
 
 const subidaAudio = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB: de sobra para un clip de voz corto
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 
 const router = express.Router();
 
-// POST /api/grabaciones → Registrar grabación (RF04, RF06, RF08–RF11, RF15, RF26)
+// GET /api/grabaciones/validar → Obtener grabación pendiente de
+// validación (RF18, RF19, RF27, RF37).
 //
-// Se envuelve multer manualmente (en vez de pasarlo directo como
-// middleware) para poder convertir sus errores —por ejemplo, un
-// archivo demasiado grande— al formato de error uniforme del sistema,
-// en lugar del error genérico que produciría por defecto.
+// Debe declararse ANTES de cualquier ruta con parámetro dinámico como
+// /:id, ya que Express resuelve las rutas en orden de declaración y
+// "validar" sería interpretado como un valor del parámetro.
+router.get('/validar', validacionControlador.obtenerPendiente);
+
+// POST /api/grabaciones → Registrar grabación (RF04, RF06, RF08–RF11, RF15, RF26)
 router.post('/', (req, res, next) => {
   subidaAudio.single('audio')(req, res, (error) => {
     if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {

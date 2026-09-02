@@ -1,47 +1,80 @@
 // frontend/src/App.jsx
 //
-// Encadena las pantallas del flujo del hablante nativo:
-// identificación → redacción del enunciado → grabación de voz →
-// validación (siguiente tarea del cronograma, OE3).
+// Orquesta la navegación entre las pantallas del sistema. El estado
+// vive aquí, en el "Gestor de Estado" del Frontend descrito en el DDS
+// §2.2.1.1, y se pasa hacia abajo por props.
 //
-// El estado vive aquí, en el "Gestor de Estado" del Frontend descrito
-// en el DDS §2.2.1.1, y se pasa hacia abajo por props.
+// Tras identificarse, el hablante elige entre dos actividades:
+//   - Contribuir : redactar enunciado → grabar voz
+//   - Validar    : evaluar las grabaciones de otros miembros
 
 import { useState } from 'react';
 import RegistroMetadatos from './pages/RegistroMetadatos';
+import MenuPrincipal from './pages/MenuPrincipal';
 import RedactarEnunciado from './pages/RedactarEnunciado';
 import GrabarVoz from './pages/GrabarVoz';
+import ValidarGrabaciones from './pages/ValidarGrabaciones';
 import BarraSincronizacion from './components/BarraSincronizacion';
+
+const VISTA = {
+  MENU: 'MENU',
+  CONTRIBUIR: 'CONTRIBUIR',
+  VALIDAR: 'VALIDAR',
+};
 
 function App() {
   const [hablante, setHablante] = useState(null);
+  const [vista, setVista] = useState(VISTA.MENU);
+
   const [enunciado, setEnunciado] = useState(null);
   const [grabacion, setGrabacion] = useState(null);
   const [guardadaLocal, setGuardadaLocal] = useState(null);
 
   /**
-   * Limpia el estado de la contribución terminada y devuelve al
-   * hablante a la interfaz de transcripción (DDS §3.2.3, paso 14).
-   *
-   * Deben limpiarse todos los valores: si solo se reinicia el
-   * enunciado, la grabación anterior permanece en el estado y la
-   * aplicación se salta la pantalla de grabación.
+   * Limpia el estado de la contribución terminada (DDS §3.2.3, paso 14).
+   * Deben limpiarse los tres valores: si solo se reinicia el enunciado,
+   * la grabación anterior permanece y la aplicación se salta la
+   * pantalla de grabación.
    */
-  function iniciarNuevaContribucion() {
+  function reiniciarContribucion() {
     setEnunciado(null);
     setGrabacion(null);
     setGuardadaLocal(null);
   }
 
-  function cambiarDeHablante() {
+  function volverAlMenu() {
+    reiniciarContribucion();
+    setVista(VISTA.MENU);
+  }
+
+  function cerrarSesion() {
     setHablante(null);
-    iniciarNuevaContribucion();
+    volverAlMenu();
   }
 
   function contenido() {
     if (!hablante) {
       return <RegistroMetadatos onHablanteListo={setHablante} />;
     }
+
+    if (vista === VISTA.MENU) {
+      return (
+        <MenuPrincipal
+          hablante={hablante}
+          onContribuir={() => setVista(VISTA.CONTRIBUIR)}
+          onValidar={() => setVista(VISTA.VALIDAR)}
+          onSalir={cerrarSesion}
+        />
+      );
+    }
+
+    if (vista === VISTA.VALIDAR) {
+      return (
+        <ValidarGrabaciones idMetadatos={hablante.id_metadatos} onSalir={volverAlMenu} />
+      );
+    }
+
+    // --- Flujo de contribución ---
 
     if (!enunciado) {
       return (
@@ -63,8 +96,8 @@ function App() {
       );
     }
 
-    // Contribución guardada sin conexión: no hay id_grabacion ni URL
-    // todavía, porque el registro se creará al sincronizar.
+    // Contribución guardada sin conexión: aún no existe id_grabacion
+    // ni URL, porque el registro se creará al sincronizar.
     if (guardadaLocal) {
       return (
         <div style={estilos.contenedor}>
@@ -77,21 +110,19 @@ function App() {
           </div>
           <p style={estilos.nota}>
             Se enviará automáticamente cuando vuelvas a tener conexión a internet.
-            No cierres la aplicación hasta entonces.
           </p>
           <div style={estilos.filaBotones}>
-            <button onClick={iniciarNuevaContribucion} style={estilos.boton}>
+            <button onClick={reiniciarContribucion} style={estilos.boton}>
               Grabar otro enunciado
             </button>
-            <button onClick={cambiarDeHablante} style={estilos.botonSecundario}>
-              Salir
+            <button onClick={volverAlMenu} style={estilos.botonSecundario}>
+              Volver al menú
             </button>
           </div>
         </div>
       );
     }
 
-    // Contribución enviada al servidor.
     return (
       <div style={estilos.contenedor}>
         <h1 style={estilos.titulo}>✅ Contribución guardada</h1>
@@ -110,11 +141,11 @@ function App() {
         </p>
 
         <div style={estilos.filaBotones}>
-          <button onClick={iniciarNuevaContribucion} style={estilos.boton}>
+          <button onClick={reiniciarContribucion} style={estilos.boton}>
             Grabar otro enunciado
           </button>
-          <button onClick={cambiarDeHablante} style={estilos.botonSecundario}>
-            Salir
+          <button onClick={volverAlMenu} style={estilos.botonSecundario}>
+            Volver al menú
           </button>
         </div>
       </div>

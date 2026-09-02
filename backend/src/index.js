@@ -18,6 +18,7 @@ const metadatosRoutes = require('./routes/metadatos.routes');
 const transcripcionRoutes = require('./routes/transcripcion.routes');
 const grabacionRoutes = require('./routes/grabacion.routes');
 const sincronizacionRoutes = require('./routes/sincronizacion.routes');
+const votoRoutes = require('./routes/voto.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +61,7 @@ app.use('/api/metadatos', metadatosRoutes);
 app.use('/api/transcripciones', transcripcionRoutes);
 app.use('/api/grabaciones', grabacionRoutes);
 app.use('/api/sincronizacion', sincronizacionRoutes);
+app.use('/api/votos', votoRoutes);
 
 // ---------------------------------------------------------------------
 // Ruta no encontrada
