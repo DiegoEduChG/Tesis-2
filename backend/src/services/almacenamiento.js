@@ -47,4 +47,34 @@ async function subirArchivo(buffer, nombreArchivo) {
   return `http://localhost:${puerto}/uploads/${nombreArchivo}`;
 }
 
-module.exports = { subirArchivo };
+/**
+ * Recupera el contenido de un archivo previamente almacenado.
+ * Al migrar a un servicio en la nube, esta función pasará a descargar
+ * el objeto correspondiente.
+ *
+ * @param {string} nombreArchivo
+ * @returns {Promise<Buffer>}
+ */
+async function leerArchivo(nombreArchivo) {
+  const rutaOrigen = path.join(CARPETA_UPLOADS, nombreArchivo);
+  return fs.promises.readFile(rutaOrigen);
+}
+
+/**
+ * Elimina un archivo del almacenamiento.
+ * No falla si el archivo ya no existe: el objetivo es que deje de
+ * estar, y esa condición ya se cumple.
+ *
+ * @param {string} nombreArchivo
+ */
+async function eliminarArchivo(nombreArchivo) {
+  const ruta = path.join(CARPETA_UPLOADS, nombreArchivo);
+
+  try {
+    await fs.promises.unlink(ruta);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+
+module.exports = { subirArchivo, leerArchivo, eliminarArchivo };

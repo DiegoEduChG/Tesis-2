@@ -27,7 +27,7 @@ const ETAPA = {
   LISTO: 'LISTO',
 };
 
-export default function RegistroMetadatos({ onHablanteListo }) {
+export default function RegistroMetadatos({ actividad, onHablanteListo, onVolver }) {
   const [etapa, setEtapa] = useState(ETAPA.INGRESAR_DNI);
   const [dni, setDni] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -123,8 +123,12 @@ export default function RegistroMetadatos({ onHablanteListo }) {
 
   return (
     <div style={estilos.contenedor}>
-      <h1 style={estilos.titulo}>NampiVoz</h1>
-      <p style={estilos.subtitulo}>Identifícate para comenzar a contribuir</p>
+      <h1 style={estilos.titulo}>Identifícate</h1>
+      <p style={estilos.subtitulo}>
+        {actividad === 'VALIDAR'
+          ? 'Necesitamos saber quién eres para mostrarte grabaciones de otros hablantes.'
+          : 'Necesitamos saber quién eres para asociar tus contribuciones al corpus.'}
+      </p>
 
       {error && <div style={estilos.error}>{error}</div>}
 
@@ -201,8 +205,14 @@ export default function RegistroMetadatos({ onHablanteListo }) {
 
       {etapa === ETAPA.LISTO && (
         <div style={estilos.formulario}>
-          <p>✅ Identificación completa. Ya puedes continuar a la redacción de tu enunciado.</p>
+          <p>✅ Identificación completa.</p>
         </div>
+      )}
+
+      {onVolver && (
+        <button onClick={onVolver} style={estilos.botonVolver}>
+          ← Elegir otra actividad
+        </button>
       )}
     </div>
   );
@@ -222,4 +232,5 @@ const estilos = {
   filaBotones: { display: 'flex', gap: 12 },
   listaDatos: { background: '#f3f4f6', padding: 16, borderRadius: 6, listStyle: 'none' },
   error: { background: '#fee2e2', color: '#991b1b', padding: 12, borderRadius: 6, marginBottom: 16 },
+  botonVolver: { width: '100%', padding: 10, fontSize: 15, borderRadius: 6, border: 'none', background: 'transparent', color: '#2563eb', cursor: 'pointer', marginTop: 20 },
 };

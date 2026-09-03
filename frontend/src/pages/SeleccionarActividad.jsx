@@ -1,20 +1,18 @@
-// frontend/src/pages/MenuPrincipal.jsx
+// frontend/src/pages/SeleccionarActividad.jsx
 //
-// Pantalla intermedia que permite al hablante elegir entre las dos
-// actividades que el sistema le ofrece: aportar una contribución propia
-// o validar las de otros miembros de la comunidad.
+// Punto de entrada del sistema. Implementa el caso de uso
+// "Seleccionar actividad" (ERS §2.1.2.1) y el flujo 3.2.1 del DDS.
 //
-// El ERS y el DDS especifican ambos flujos pero no un punto de entrada
-// que los articule, porque cada caso de uso se describe de forma
-// independiente. Esta pantalla resuelve esa necesidad de navegación.
-// Conviene incorporarla al DDS como parte del flujo del hablante.
+// Se presenta antes de la identificación: el hablante elige primero
+// qué desea hacer y solo entonces se le solicita su DNI. Esta pantalla
+// no realiza peticiones al Backend.
 
-export default function MenuPrincipal({ hablante, onContribuir, onValidar, onSalir }) {
+export default function SeleccionarActividad({ onContribuir, onValidar, onAdministrar }) {
   return (
     <div style={estilos.contenedor}>
-      <h1 style={estilos.titulo}>¿Qué quieres hacer?</h1>
+      <h1 style={estilos.titulo}>NampiVoz</h1>
       <p style={estilos.subtitulo}>
-        Estás participando en {hablante.lengua}.
+        Ayuda a documentar tu lengua originaria. ¿Qué quieres hacer?
       </p>
 
       <button onClick={onContribuir} style={estilos.opcion}>
@@ -37,8 +35,8 @@ export default function MenuPrincipal({ hablante, onContribuir, onValidar, onSal
         </span>
       </button>
 
-      <button onClick={onSalir} style={estilos.botonSecundario}>
-        Salir
+      <button onClick={onAdministrar} style={estilos.enlaceAdmin}>
+        Administración
       </button>
     </div>
   );
@@ -46,8 +44,8 @@ export default function MenuPrincipal({ hablante, onContribuir, onValidar, onSal
 
 const estilos = {
   contenedor: { maxWidth: 420, margin: '48px auto', padding: 24, fontFamily: 'sans-serif' },
-  titulo: { fontSize: 24, marginBottom: 4 },
-  subtitulo: { color: '#555', marginBottom: 24 },
+  titulo: { fontSize: 28, marginBottom: 4 },
+  subtitulo: { color: '#555', marginBottom: 28 },
   opcion: {
     display: 'flex',
     alignItems: 'center',
@@ -66,15 +64,5 @@ const estilos = {
   icono: { fontSize: 32 },
   tituloOpcion: { display: 'block', fontSize: 17, marginBottom: 2 },
   descripcionOpcion: { display: 'block', fontSize: 14, color: '#666' },
-  botonSecundario: {
-    width: '100%',
-    padding: 10,
-    fontSize: 15,
-    borderRadius: 6,
-    border: 'none',
-    background: 'transparent',
-    color: '#2563eb',
-    cursor: 'pointer',
-    marginTop: 16,
-  },
+  enlaceAdmin: { width: '100%', padding: 10, fontSize: 13, borderRadius: 6, border: 'none', background: 'transparent', color: '#9ca3af', cursor: 'pointer', marginTop: 24 },
 };

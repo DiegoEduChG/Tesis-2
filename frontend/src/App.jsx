@@ -4,37 +4,44 @@
 // vive aquí, en el "Gestor de Estado" del Frontend descrito en el DDS
 // §2.2.1.1, y se pasa hacia abajo por props.
 //
-// Tras identificarse, el hablante elige entre dos actividades:
-//   - Contribuir : redactar enunciado → grabar voz
-//   - Validar    : evaluar las grabaciones de otros miembros
+// Orden del flujo:
+//   1. Seleccionar actividad  (punto de entrada, sin identificación)
+//   2. Identificarse mediante DNI
+//   3. Según la actividad elegida:
+//        Contribuir : redactar enunciado → grabar voz
+//        Validar    : evaluar las grabaciones de otros miembros
 
 import { useState } from 'react';
+import SeleccionarActividad from './pages/SeleccionarActividad';
 import RegistroMetadatos from './pages/RegistroMetadatos';
-import MenuPrincipal from './pages/MenuPrincipal';
 import RedactarEnunciado from './pages/RedactarEnunciado';
 import GrabarVoz from './pages/GrabarVoz';
 import ValidarGrabaciones from './pages/ValidarGrabaciones';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminPanel from './pages/admin/AdminPanel';
+import { cerrarSesion as limpiarTokenAdmin } from './services/adminService';
 import BarraSincronizacion from './components/BarraSincronizacion';
 
-const VISTA = {
-  MENU: 'MENU',
+const ACTIVIDAD = {
   CONTRIBUIR: 'CONTRIBUIR',
   VALIDAR: 'VALIDAR',
+  ADMINISTRAR: 'ADMINISTRAR',
 };
 
 function App() {
+  const [actividad, setActividad] = useState(null);
   const [hablante, setHablante] = useState(null);
-  const [vista, setVista] = useState(VISTA.MENU);
 
   const [enunciado, setEnunciado] = useState(null);
   const [grabacion, setGrabacion] = useState(null);
   const [guardadaLocal, setGuardadaLocal] = useState(null);
+  const [sesionAdmin, setSesionAdmin] = useState(null);
 
   /**
-   * Limpia el estado de la contribución terminada (DDS §3.2.3, paso 14).
-   * Deben limpiarse los tres valores: si solo se reinicia el enunciado,
-   * la grabación anterior permanece y la aplicación se salta la
-   * pantalla de grabación.
+   * Limpia el estado de la contribución terminada (DDS, flujo de
+   * grabación, último paso). Deben limpiarse los tres valores: si solo
+   * se reinicia el enunciado, la grabación anterior permanece y la
+   * aplicación se salta la pantalla de grabación.
    */
   function reiniciarContribucion() {
     setEnunciado(null);
@@ -42,39 +49,77 @@ function App() {
     setGuardadaLocal(null);
   }
 
-  function volverAlMenu() {
+  /**
+   * Vuelve al punto de entrada. Se conserva la identificación del
+   * hablante: quien acaba de aportar una grabación puede pasar a
+   * validar sin volver a ingresar su DNI.
+   */
+  function volverASeleccion() {
     reiniciarContribucion();
-    setVista(VISTA.MENU);
+    setActividad(null);
   }
 
+  function cerrarSesionAdmin() {
+    limpiarTokenAdmin();
+    setSesionAdmin(null);
+    setActividad(null);
+  }
+
+  /**
+   * Cierra la sesión por completo. Necesario en las sesiones de prueba
+   * donde varios participantes comparten un mismo dispositivo.
+   */
   function cerrarSesion() {
     setHablante(null);
-    volverAlMenu();
+    volverASeleccion();
   }
 
   function contenido() {
-    if (!hablante) {
-      return <RegistroMetadatos onHablanteListo={setHablante} />;
-    }
-
-    if (vista === VISTA.MENU) {
+    // Paso 1 — Selección de actividad
+    if (!actividad) {
       return (
-        <MenuPrincipal
-          hablante={hablante}
-          onContribuir={() => setVista(VISTA.CONTRIBUIR)}
-          onValidar={() => setVista(VISTA.VALIDAR)}
-          onSalir={cerrarSesion}
+        <SeleccionarActividad
+          onContribuir={() => setActividad(ACTIVIDAD.CONTRIBUIR)}
+          onValidar={() => setActividad(ACTIVIDAD.VALIDAR)}
+          onAdministrar={() => setActividad(ACTIVIDAD.ADMINISTRAR)}
         />
       );
     }
 
-    if (vista === VISTA.VALIDAR) {
+    // El rol Administrador tiene su propio mecanismo de autenticación,
+    // independiente de la identificación por DNI de los hablantes.
+    if (actividad === ACTIVIDAD.ADMINISTRAR) {
+      if (!sesionAdmin) {
+        return (
+          <AdminLogin onSesionIniciada={setSesionAdmin} onVolver={volverASeleccion} />
+        );
+      }
+
       return (
-        <ValidarGrabaciones idMetadatos={hablante.id_metadatos} onSalir={volverAlMenu} />
+        <AdminPanel usuario={sesionAdmin.usuario} onCerrarSesion={cerrarSesionAdmin} />
       );
     }
 
-    // --- Flujo de contribución ---
+    // Paso 2 — Identificación
+    if (!hablante) {
+      return (
+        <RegistroMetadatos
+          actividad={actividad}
+          onHablanteListo={setHablante}
+          onVolver={volverASeleccion}
+        />
+      );
+    }
+
+    // Paso 3 — Actividad elegida
+    if (actividad === ACTIVIDAD.VALIDAR) {
+      return (
+        <ValidarGrabaciones
+          idMetadatos={hablante.id_metadatos}
+          onSalir={volverASeleccion}
+        />
+      );
+    }
 
     if (!enunciado) {
       return (
@@ -115,10 +160,13 @@ function App() {
             <button onClick={reiniciarContribucion} style={estilos.boton}>
               Grabar otro enunciado
             </button>
-            <button onClick={volverAlMenu} style={estilos.botonSecundario}>
-              Volver al menú
+            <button onClick={volverASeleccion} style={estilos.botonSecundario}>
+              Inicio
             </button>
           </div>
+          <button onClick={cerrarSesion} style={estilos.botonTerciario}>
+            Cambiar de hablante
+          </button>
         </div>
       );
     }
@@ -144,10 +192,14 @@ function App() {
           <button onClick={reiniciarContribucion} style={estilos.boton}>
             Grabar otro enunciado
           </button>
-          <button onClick={volverAlMenu} style={estilos.botonSecundario}>
-            Volver al menú
+          <button onClick={volverASeleccion} style={estilos.botonSecundario}>
+            Inicio
           </button>
         </div>
+
+        <button onClick={cerrarSesion} style={estilos.botonTerciario}>
+          Cambiar de hablante
+        </button>
       </div>
     );
   }
@@ -170,6 +222,7 @@ const estilos = {
   filaBotones: { display: 'flex', gap: 12, marginTop: 20 },
   boton: { padding: 12, fontSize: 16, borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', flex: 1 },
   botonSecundario: { padding: 12, fontSize: 16, borderRadius: 6, border: '1px solid #999', background: '#fff', color: '#444', cursor: 'pointer' },
+  botonTerciario: { width: '100%', padding: 10, fontSize: 14, borderRadius: 6, border: 'none', background: 'transparent', color: '#888', cursor: 'pointer', marginTop: 12 },
 };
 
 export default App;

@@ -125,6 +125,14 @@ async function emitirVoto(req, res) {
           'Ya emitiste un voto sobre esta grabación.'
         );
 
+      case servicio.RESULTADO.LENGUA_NO_COINCIDE:
+        return enviarError(
+          res,
+          409,
+          CODIGOS.LENGUA_NO_COINCIDE,
+          'Solo puedes validar grabaciones en tu misma lengua.'
+        );
+
       case servicio.RESULTADO.AUTOVOTO_NO_PERMITIDO:
         // NOTA PARA EL DDS: este código no figura en el catálogo de la
         // sección 3.4.2.1. Debe incorporarse allí, junto con

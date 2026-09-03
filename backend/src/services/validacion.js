@@ -13,6 +13,9 @@
 //     nuevos votos.
 //   - Cada hablante puede emitir como máximo un voto por grabación.
 //   - Un hablante no puede votar sus propias grabaciones.
+//   - Un hablante solo puede votar grabaciones de su misma lengua:
+//     evaluar si un audio se entiende con claridad y corresponde a su
+//     transcripción exige competencia en la lengua evaluada.
 //
 // ---------------------------------------------------------------------
 // SOBRE LA CONCURRENCIA
@@ -42,6 +45,7 @@ const RESULTADO = {
   AUTOVOTO_NO_PERMITIDO: 'AUTOVOTO_NO_PERMITIDO',
   VOTO_DUPLICADO: 'VOTO_DUPLICADO',
   HABLANTE_NO_ENCONTRADO: 'HABLANTE_NO_ENCONTRADO',
+  LENGUA_NO_COINCIDE: 'LENGUA_NO_COINCIDE',
 };
 
 /**
@@ -76,9 +80,10 @@ async function registrarVoto(idGrabacion, idMetadatos, esValido) {
     // Bloqueo de la fila hasta el final de la transacción. Cualquier
     // otro voto sobre esta misma grabación espera aquí.
     const [grabaciones] = await conexion.query(
-      `SELECT id_grabacion, id_metadatos, estado
-         FROM grabacion
-        WHERE id_grabacion = ?
+      `SELECT g.id_grabacion, g.id_metadatos, g.estado, autor.lengua
+         FROM grabacion g
+         JOIN metadatos autor ON autor.id_metadatos = g.id_metadatos
+        WHERE g.id_grabacion = ?
         FOR UPDATE`,
       [idGrabacion]
     );
@@ -102,6 +107,26 @@ async function registrarVoto(idGrabacion, idMetadatos, esValido) {
     if (grabacion.id_metadatos === idMetadatos) {
       await conexion.rollback();
       return { resultado: RESULTADO.AUTOVOTO_NO_PERMITIDO };
+    }
+
+    // Solo un hablante de la lengua puede juzgar si una grabación se
+    // entiende con claridad y corresponde a su transcripción. La
+    // consulta de asignación ya excluye las grabaciones de otras
+    // lenguas; esta comprobación cierra la vía de una petición
+    // construida a mano.
+    const [validadores] = await conexion.query(
+      'SELECT lengua FROM metadatos WHERE id_metadatos = ?',
+      [idMetadatos]
+    );
+
+    if (validadores.length === 0) {
+      await conexion.rollback();
+      return { resultado: RESULTADO.HABLANTE_NO_ENCONTRADO };
+    }
+
+    if (validadores[0].lengua !== grabacion.lengua) {
+      await conexion.rollback();
+      return { resultado: RESULTADO.LENGUA_NO_COINCIDE };
     }
 
     try {
