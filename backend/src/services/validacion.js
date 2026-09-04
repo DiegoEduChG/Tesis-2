@@ -35,8 +35,7 @@
 // ---------------------------------------------------------------------
 
 const pool = require('../config/db');
-
-const UMBRAL_VOTOS = 3;
+const { evaluarUmbral, UMBRAL_VOTOS } = require('./umbral');
 
 const RESULTADO = {
   OK: 'OK',
@@ -47,21 +46,6 @@ const RESULTADO = {
   HABLANTE_NO_ENCONTRADO: 'HABLANTE_NO_ENCONTRADO',
   LENGUA_NO_COINCIDE: 'LENGUA_NO_COINCIDE',
 };
-
-/**
- * Determina el estado que corresponde a una grabación según su conteo
- * de votos. Función pura: se aísla de la base de datos para poder
- * verificarse mediante pruebas unitarias.
- *
- * @param {number} positivos
- * @param {number} negativos
- * @returns {'pendiente'|'validada'|'rechazada'}
- */
-function evaluarUmbral(positivos, negativos) {
-  if (positivos >= UMBRAL_VOTOS) return 'validada';
-  if (negativos >= UMBRAL_VOTOS) return 'rechazada';
-  return 'pendiente';
-}
 
 /**
  * Registra un voto y evalúa si la grabación alcanzó algún umbral.
@@ -194,4 +178,4 @@ async function registrarVoto(idGrabacion, idMetadatos, esValido) {
   }
 }
 
-module.exports = { registrarVoto, evaluarUmbral, RESULTADO, UMBRAL_VOTOS };
+module.exports = { registrarVoto, RESULTADO, UMBRAL_VOTOS };

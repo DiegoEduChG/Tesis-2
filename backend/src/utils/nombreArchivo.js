@@ -14,6 +14,8 @@
  * abierta, y el DNI es un dato personal identificable protegido por la
  * Ley N.º 29733.
  */
+const { normalizarLengua } = require('./normalizarLengua');
+
 function generarNombreArchivo(lengua, idMetadatos) {
   const ahora = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -21,11 +23,7 @@ function generarNombreArchivo(lengua, idMetadatos) {
   const fecha = `${ahora.getFullYear()}${pad(ahora.getMonth() + 1)}${pad(ahora.getDate())}`;
   const hora = `${pad(ahora.getHours())}${pad(ahora.getMinutes())}${pad(ahora.getSeconds())}`;
 
-  const lenguaSlug = lengua
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // quita tildes
-    .replace(/[^a-z0-9]/g, '');
+  const lenguaSlug = normalizarLengua(lengua);
 
   // El sufijo aleatorio evita colisiones cuando se sincronizan varias
   // contribuciones del mismo hablante dentro del mismo segundo, algo

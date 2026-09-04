@@ -18,6 +18,13 @@
 //                               del corpus y evita exponer el DNI del
 //                               hablante (Ley N.º 29733).
 //
+//   src/services/umbral.js      Regla que decide si una contribución se
+//                               incorpora al corpus, se descarta o
+//                               permanece en evaluación. Un fallo aquí
+//                               produciría un corpus cuyo contenido no
+//                               corresponde a lo que la comunidad
+//                               decidió.
+//
 // Quedan fuera los controladores y modelos, cuya verificación
 // corresponde a las pruebas funcionales de integración previstas en el
 // cronograma, y las configuraciones sin lógica de negocio.
@@ -33,6 +40,7 @@ module.exports = {
   collectCoverageFrom: [
     'src/utils/validarWav.js',
     'src/utils/nombreArchivo.js',
+    'src/services/umbral.js',
   ],
 
   coverageThreshold: {

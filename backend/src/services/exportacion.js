@@ -21,6 +21,7 @@ const archiverModulo = require('archiver');
 const archiver =
   typeof archiverModulo === 'function' ? archiverModulo : archiverModulo.default;
 const almacenamiento = require('./almacenamiento');
+const { normalizarLengua } = require('../utils/normalizarLengua');
 
 const LICENCIA = `Corpus de voz en lenguas originarias
 Generado con NampiVoz
@@ -64,18 +65,6 @@ function construirCsv(cabeceras, filas) {
   // codificación UTF-8 y muestren correctamente los caracteres de las
   // lenguas originarias en lugar de interpretarlos como Latin-1.
   return '\uFEFF' + lineas.join('\n');
-}
-
-/**
- * Normaliza el nombre de una lengua para usarlo en rutas y nombres de
- * archivo: minúsculas, sin tildes ni caracteres especiales.
- */
-function normalizarLengua(lengua) {
-  return String(lengua)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '');
 }
 
 /**

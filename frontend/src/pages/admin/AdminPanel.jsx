@@ -20,10 +20,7 @@ import {
   exportarCorpus,
   cerrarSesion as limpiarToken,
 } from '../../services/adminService';
-
-const RANGOS_EDAD = ['18-29', '30-39', '40-49', '50-59', '60+'];
-const GENEROS = ['Femenino', 'Masculino', 'Otro', 'Prefiero no indicar'];
-const LENGUAS = ['Quechua', 'Aimara', 'Asháninka', 'Shipibo-Konibo', 'Awajún'];
+import { RANGOS_EDAD, GENEROS, LENGUAS } from '../../config/catalogos';
 
 const SECCION = { GRABACIONES: 'GRABACIONES', HABLANTES: 'HABLANTES' };
 
@@ -34,6 +31,15 @@ export default function AdminPanel({ usuario, onCerrarSesion }) {
   const [aviso, setAviso] = useState(null);
 
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroLenguaGrab, setFiltroLenguaGrab] = useState('');
+
+  const [busqueda, setBusqueda] = useState('');
+  const [busquedaAplicada, setBusquedaAplicada] = useState('');
+  const [filtroLenguaHab, setFiltroLenguaHab] = useState('');
+  const [filtroRangoEdad, setFiltroRangoEdad] = useState('');
+  const [filtroGenero, setFiltroGenero] = useState('');
+
+  const [totalHablantes, setTotalHablantes] = useState(0);
   const [grabaciones, setGrabaciones] = useState([]);
   const [hablantes, setHablantes] = useState([]);
   const [editando, setEditando] = useState(null);
@@ -62,18 +68,36 @@ export default function AdminPanel({ usuario, onCerrarSesion }) {
       setMetricas(await obtenerMetricas());
 
       if (seccion === SECCION.GRABACIONES) {
-        const datos = await listarGrabaciones({ estado: filtroEstado || undefined });
+        const datos = await listarGrabaciones({
+          estado: filtroEstado || undefined,
+          lengua: filtroLenguaGrab || undefined,
+        });
         setGrabaciones(datos.grabaciones);
       } else {
-        const datos = await listarHablantes();
+        const datos = await listarHablantes({
+          busqueda: busquedaAplicada || undefined,
+          lengua: filtroLenguaHab || undefined,
+          rangoEdad: filtroRangoEdad || undefined,
+          genero: filtroGenero || undefined,
+        });
         setHablantes(datos.hablantes);
+        setTotalHablantes(datos.total);
       }
     } catch (err) {
       manejarError(err);
     } finally {
       setCargando(false);
     }
-  }, [seccion, filtroEstado, manejarError]);
+  }, [
+    seccion,
+    filtroEstado,
+    filtroLenguaGrab,
+    busquedaAplicada,
+    filtroLenguaHab,
+    filtroRangoEdad,
+    filtroGenero,
+    manejarError,
+  ]);
 
   useEffect(() => {
     refrescar();
@@ -103,15 +127,33 @@ export default function AdminPanel({ usuario, onCerrarSesion }) {
     }
   }
 
+  /**
+   * Exporta el corpus validado. Si hay un filtro de lengua activo en la
+   * sección de grabaciones, la exportación se restringe a esa lengua y
+   * los audios quedan en un directorio plano. Sin filtro, se exporta
+   * todo el corpus con los audios agrupados por lengua.
+   */
   async function accionExportar() {
     setError(null);
     try {
-      const nombre = await exportarCorpus();
-      setAviso(`Corpus exportado: ${nombre}`);
+      const nombre = await exportarCorpus(filtroLenguaGrab || undefined);
+      setAviso(
+        filtroLenguaGrab
+          ? `Corpus de ${filtroLenguaGrab} exportado: ${nombre}`
+          : `Corpus completo exportado (agrupado por lengua): ${nombre}`
+      );
       await refrescar();
     } catch (err) {
       manejarError(err);
     }
+  }
+
+  function limpiarFiltrosHablantes() {
+    setBusqueda('');
+    setBusquedaAplicada('');
+    setFiltroLenguaHab('');
+    setFiltroRangoEdad('');
+    setFiltroGenero('');
   }
 
   async function guardarHablante(evento) {
@@ -170,7 +212,7 @@ export default function AdminPanel({ usuario, onCerrarSesion }) {
           Hablantes
         </button>
         <button onClick={accionExportar} style={estilos.botonExportar}>
-          ⬇ Exportar corpus validado
+          ⬇ Exportar {filtroLenguaGrab ? filtroLenguaGrab : 'todo el corpus'}
         </button>
       </nav>
 
@@ -190,7 +232,39 @@ export default function AdminPanel({ usuario, onCerrarSesion }) {
               <option value="validada">Validadas</option>
               <option value="rechazada">Rechazadas</option>
             </select>
+
+            <label style={estilos.etiquetaFiltro}>Lengua:</label>
+            <select
+              value={filtroLenguaGrab}
+              onChange={(e) => setFiltroLenguaGrab(e.target.value)}
+              style={estilos.select}
+            >
+              <option value="">Todas</option>
+              {LENGUAS.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+
+            {filtroLenguaGrab && (
+              <button onClick={() => setFiltroLenguaGrab('')} style={estilos.botonLimpiar}>
+                Quitar filtro
+              </button>
+            )}
           </div>
+
+          {metricas?.por_lengua?.length > 0 && (
+            <div style={estilos.desglose}>
+              Validadas por lengua:{' '}
+              {metricas.por_lengua.map((l) => (
+                <button
+                  key={l.lengua}
+                  onClick={() => setFiltroLenguaGrab(l.lengua)}
+                  style={estilos.chip}
+                  title={`${l.hablantes} hablante(s)`}
+                >
+                  {l.lengua}: {l.validadas} · {l.minutos} min
+                </button>
+              ))}
+            </div>
+          )}
 
           {grabaciones.length === 0 && !cargando && (
             <p style={estilos.vacio}>No hay grabaciones que coincidan con el filtro.</p>
@@ -230,6 +304,67 @@ export default function AdminPanel({ usuario, onCerrarSesion }) {
 
       {seccion === SECCION.HABLANTES && (
         <>
+          <div style={estilos.filtros}>
+            <input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && setBusquedaAplicada(busqueda.trim())}
+              placeholder="Buscar por DNI o lengua…"
+              style={estilos.inputBusqueda}
+            />
+            <button
+              onClick={() => setBusquedaAplicada(busqueda.trim())}
+              style={estilos.botonBuscar}
+            >
+              Buscar
+            </button>
+          </div>
+
+          <div style={estilos.filtros}>
+            <select
+              value={filtroLenguaHab}
+              onChange={(e) => setFiltroLenguaHab(e.target.value)}
+              style={estilos.select}
+            >
+              <option value="">Todas las lenguas</option>
+              {LENGUAS.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+
+            <select
+              value={filtroRangoEdad}
+              onChange={(e) => setFiltroRangoEdad(e.target.value)}
+              style={estilos.select}
+            >
+              <option value="">Toda edad</option>
+              {RANGOS_EDAD.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+
+            <select
+              value={filtroGenero}
+              onChange={(e) => setFiltroGenero(e.target.value)}
+              style={estilos.select}
+            >
+              <option value="">Todo género</option>
+              {GENEROS.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+
+            {(busquedaAplicada || filtroLenguaHab || filtroRangoEdad || filtroGenero) && (
+              <button onClick={limpiarFiltrosHablantes} style={estilos.botonLimpiar}>
+                Limpiar
+              </button>
+            )}
+          </div>
+
+          <p style={estilos.metadato}>
+            {totalHablantes} hablante{totalHablantes === 1 ? '' : 's'}
+            {(busquedaAplicada || filtroLenguaHab || filtroRangoEdad || filtroGenero) &&
+              ' con los filtros aplicados'}
+          </p>
+
+          {hablantes.length === 0 && !cargando && (
+            <p style={estilos.vacio}>Ningún hablante coincide con la búsqueda.</p>
+          )}
+
           {editando && (
             <form onSubmit={guardarHablante} style={estilos.formularioEdicion}>
               <h3 style={{ marginTop: 0 }}>Editar hablante #{editando.id_metadatos}</h3>
@@ -354,4 +489,9 @@ const estilos = {
   aviso: { background: '#dcfce7', color: '#166534', padding: 12, borderRadius: 6, marginBottom: 16 },
   cargando: { color: '#666' },
   vacio: { color: '#888', textAlign: 'center', padding: 24 },
+  inputBusqueda: { flex: 1, padding: 8, fontSize: 15, borderRadius: 4, border: '1px solid #ccc' },
+  botonBuscar: { padding: '8px 16px', fontSize: 14, borderRadius: 4, border: 'none', background: '#1f2937', color: '#fff', cursor: 'pointer' },
+  botonLimpiar: { padding: '6px 12px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', background: '#fff', color: '#555', cursor: 'pointer' },
+  desglose: { fontSize: 13, color: '#555', marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
+  chip: { padding: '4px 10px', fontSize: 12, borderRadius: 12, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' },
 };

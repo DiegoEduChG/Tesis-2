@@ -12,12 +12,7 @@
 
 import { useState } from 'react';
 import { consultarPorDni, registrar } from '../services/metadatosService';
-
-// Debe coincidir con backend/src/config/catalogos.js. Si cambias uno,
-// cambia el otro y actualiza el diccionario de datos del DDS.
-const RANGOS_EDAD = ['18-29', '30-39', '40-49', '50-59', '60+'];
-const GENEROS = ['Femenino', 'Masculino', 'Otro', 'Prefiero no indicar'];
-const LENGUAS = ['Quechua', 'Aimara', 'Asháninka', 'Shipibo-Konibo', 'Awajún'];
+import { RANGOS_EDAD, GENEROS, LENGUAS } from '../config/catalogos';
 
 // Los cuatro "momentos" de la pantalla, según el flujo del DDS.
 const ETAPA = {
