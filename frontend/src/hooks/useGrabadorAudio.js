@@ -34,7 +34,28 @@ export function useGrabadorAudio() {
     setError(null);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // El control automático de ganancia (autoGainControl) se desactiva
+      // deliberadamente. Cuando está activo —y en los navegadores lo
+      // está por omisión— el micrófono sube la ganancia durante los
+      // tramos sin voz, amplificando el ruido ambiental hasta acercarlo
+      // al nivel del habla. Eso tiene dos consecuencias indeseables:
+      //
+      //   1. Impide distinguir el silencio de la voz, que es de lo que
+      //      depende el recorte de los extremos de la grabación.
+      //   2. Introduce variaciones de nivel dentro de un mismo corpus,
+      //      indeseables en material destinado a entrenar modelos del
+      //      habla, donde la consistencia de la grabación importa.
+      //
+      // La supresión de ruido y la cancelación de eco sí se mantienen:
+      // ayudan en entornos con ruido de fondo como los previstos para la
+      // prueba piloto, y no distorsionan el nivel de la señal.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: false,
+          noiseSuppression: true,
+          echoCancellation: true,
+        },
+      });
       streamRef.current = stream;
       fragmentosRef.current = [];
 
