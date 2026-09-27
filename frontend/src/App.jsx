@@ -1,15 +1,14 @@
 // frontend/src/App.jsx
 //
 // Orquesta la navegación entre las pantallas del sistema. El estado
-// vive aquí, en el "Gestor de Estado" del Frontend descrito en el DDS
-// §2.2.1.1, y se pasa hacia abajo por props.
+// vive aquí y se transmite hacia abajo por propiedades.
 //
 // Orden del flujo:
 //   1. Seleccionar actividad  (punto de entrada, sin identificación)
-//   2. Identificarse mediante DNI
+//   2. Identificarse mediante documento
 //   3. Según la actividad elegida:
-//        Contribuir : redactar enunciado → grabar voz
-//        Validar    : evaluar las grabaciones de otros miembros
+//        Contribuir : escribir frase → grabar voz
+//        Validar    : evaluar las grabaciones de la comunidad
 
 import { useState } from 'react';
 import SeleccionarActividad from './pages/SeleccionarActividad';
@@ -19,8 +18,9 @@ import GrabarVoz from './pages/GrabarVoz';
 import ValidarGrabaciones from './pages/ValidarGrabaciones';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminPanel from './pages/admin/AdminPanel';
-import { cerrarSesion as limpiarTokenAdmin } from './services/adminService';
 import BarraSincronizacion from './components/BarraSincronizacion';
+import Icono, { BotonGrande } from './components/Icono';
+import { cerrarSesion as limpiarTokenAdmin } from './services/adminService';
 
 const ACTIVIDAD = {
   CONTRIBUIR: 'CONTRIBUIR',
@@ -31,17 +31,17 @@ const ACTIVIDAD = {
 function App() {
   const [actividad, setActividad] = useState(null);
   const [hablante, setHablante] = useState(null);
+  const [sesionAdmin, setSesionAdmin] = useState(null);
 
   const [enunciado, setEnunciado] = useState(null);
   const [grabacion, setGrabacion] = useState(null);
   const [guardadaLocal, setGuardadaLocal] = useState(null);
-  const [sesionAdmin, setSesionAdmin] = useState(null);
 
   /**
-   * Limpia el estado de la contribución terminada (DDS, flujo de
-   * grabación, último paso). Deben limpiarse los tres valores: si solo
-   * se reinicia el enunciado, la grabación anterior permanece y la
-   * aplicación se salta la pantalla de grabación.
+   * Limpia el estado de la contribución terminada. Deben limpiarse los
+   * tres valores: si solo se reinicia el enunciado, la grabación
+   * anterior permanece y la aplicación se salta la pantalla de
+   * grabación.
    */
   function reiniciarContribucion() {
     setEnunciado(null);
@@ -50,28 +50,28 @@ function App() {
   }
 
   /**
-   * Vuelve al punto de entrada. Se conserva la identificación del
-   * hablante: quien acaba de aportar una grabación puede pasar a
-   * validar sin volver a ingresar su DNI.
+   * Vuelve al punto de entrada conservando la identificación: quien
+   * acaba de aportar una grabación puede pasar a validar sin volver a
+   * ingresar su documento.
    */
   function volverASeleccion() {
     reiniciarContribucion();
     setActividad(null);
   }
 
-  function cerrarSesionAdmin() {
-    limpiarTokenAdmin();
-    setSesionAdmin(null);
-    setActividad(null);
-  }
-
   /**
-   * Cierra la sesión por completo. Necesario en las sesiones de prueba
-   * donde varios participantes comparten un mismo dispositivo.
+   * Cierra la sesión por completo. Necesario en las sesiones donde
+   * varios participantes comparten un mismo dispositivo.
    */
   function cerrarSesion() {
     setHablante(null);
     volverASeleccion();
+  }
+
+  function cerrarSesionAdmin() {
+    limpiarTokenAdmin();
+    setSesionAdmin(null);
+    setActividad(null);
   }
 
   function contenido() {
@@ -87,17 +87,13 @@ function App() {
     }
 
     // El rol Administrador tiene su propio mecanismo de autenticación,
-    // independiente de la identificación por DNI de los hablantes.
+    // independiente de la identificación de los hablantes.
     if (actividad === ACTIVIDAD.ADMINISTRAR) {
       if (!sesionAdmin) {
-        return (
-          <AdminLogin onSesionIniciada={setSesionAdmin} onVolver={volverASeleccion} />
-        );
+        return <AdminLogin onSesionIniciada={setSesionAdmin} onVolver={volverASeleccion} />;
       }
 
-      return (
-        <AdminPanel usuario={sesionAdmin.usuario} onCerrarSesion={cerrarSesionAdmin} />
-      );
+      return <AdminPanel usuario={sesionAdmin.usuario} onCerrarSesion={cerrarSesionAdmin} />;
     }
 
     // Paso 2 — Identificación
@@ -114,10 +110,7 @@ function App() {
     // Paso 3 — Actividad elegida
     if (actividad === ACTIVIDAD.VALIDAR) {
       return (
-        <ValidarGrabaciones
-          idMetadatos={hablante.id_metadatos}
-          onSalir={volverASeleccion}
-        />
+        <ValidarGrabaciones idMetadatos={hablante.id_metadatos} onSalir={volverASeleccion} />
       );
     }
 
@@ -141,66 +134,38 @@ function App() {
       );
     }
 
-    // Contribución guardada sin conexión: aún no existe id_grabacion
-    // ni URL, porque el registro se creará al sincronizar.
+    // Contribución guardada sin conexión: aún no existe registro en el
+    // servidor, porque se creará al sincronizar.
     if (guardadaLocal) {
       return (
-        <div style={estilos.contenedor}>
-          <h1 style={estilos.titulo}>Guardada en este dispositivo</h1>
-          <div style={estilos.resumen}>
-            <p style={estilos.enunciado}>"{guardadaLocal.texto_transcripcion}"</p>
-            <p style={estilos.metadato}>
-              Duración: {guardadaLocal.duracionSegundos?.toFixed(1)} s
-            </p>
-          </div>
-          <p style={estilos.nota}>
-            Se enviará automáticamente cuando vuelvas a tener conexión a internet.
-          </p>
-          <div style={estilos.filaBotones}>
-            <button onClick={reiniciarContribucion} style={estilos.boton}>
-              Grabar otro enunciado
-            </button>
-            <button onClick={volverASeleccion} style={estilos.botonSecundario}>
-              Inicio
-            </button>
-          </div>
-          <button onClick={cerrarSesion} style={estilos.botonTerciario}>
-            Cambiar de hablante
-          </button>
-        </div>
+        <PantallaFinal
+          icono="guardado-local"
+          titulo="Guardada en este teléfono"
+          texto={guardadaLocal.texto_transcripcion}
+          detalle={`${guardadaLocal.duracionSegundos?.toFixed(1)} segundos`}
+          nota="Se enviará sola cuando tengas internet."
+          colorNota="#92400E"
+          fondoNota="#FEF3C7"
+          onOtra={reiniciarContribucion}
+          onInicio={volverASeleccion}
+          onSalir={cerrarSesion}
+        />
       );
     }
 
     return (
-      <div style={estilos.contenedor}>
-        <h1 style={estilos.titulo}>✅ Contribución guardada</h1>
-
-        <div style={estilos.resumen}>
-          <p style={estilos.enunciado}>"{enunciado.texto_transcripcion}"</p>
-          <audio src={grabacion.url_audio} controls style={{ width: '100%' }} />
-          <p style={estilos.metadato}>
-            Duración: {Number(grabacion.duracion_segundos).toFixed(1)} s · Estado:{' '}
-            {grabacion.estado}
-          </p>
-        </div>
-
-        <p style={estilos.nota}>
-          Tu grabación quedó pendiente de validación por la comunidad.
-        </p>
-
-        <div style={estilos.filaBotones}>
-          <button onClick={reiniciarContribucion} style={estilos.boton}>
-            Grabar otro enunciado
-          </button>
-          <button onClick={volverASeleccion} style={estilos.botonSecundario}>
-            Inicio
-          </button>
-        </div>
-
-        <button onClick={cerrarSesion} style={estilos.botonTerciario}>
-          Cambiar de hablante
-        </button>
-      </div>
+      <PantallaFinal
+        icono="enviado"
+        titulo="Grabación enviada"
+        texto={enunciado.texto_transcripcion}
+        detalle={`${Number(grabacion.duracion_segundos).toFixed(1)} segundos`}
+        nota="Ahora otros hablantes de tu comunidad la van a escuchar."
+        colorNota="#166534"
+        fondoNota="#DCFCE7"
+        onOtra={reiniciarContribucion}
+        onInicio={volverASeleccion}
+        onSalir={cerrarSesion}
+      />
     );
   }
 
@@ -212,17 +177,83 @@ function App() {
   );
 }
 
+/**
+ * Pantalla de cierre de una contribución. Comparte estructura para los
+ * dos desenlaces posibles —enviada al servidor o guardada en el
+ * dispositivo— de modo que el hablante reconozca la misma disposición
+ * en ambos casos y solo cambie el mensaje.
+ */
+function PantallaFinal({
+  icono,
+  titulo,
+  texto,
+  detalle,
+  nota,
+  colorNota,
+  fondoNota,
+  onOtra,
+  onInicio,
+  onSalir,
+}) {
+  return (
+    <div style={estilos.contenedor}>
+      <div style={estilos.cabecera}>
+        <Icono nombre={icono} tamano={120} />
+        <h1 style={estilos.titulo}>{titulo}</h1>
+      </div>
+
+      <div style={estilos.resumen}>
+        <p style={estilos.enunciado}>{texto}</p>
+        <p style={estilos.detalle}>{detalle}</p>
+      </div>
+
+      <p style={{ ...estilos.nota, color: colorNota, background: fondoNota }}>{nota}</p>
+
+      <div style={estilos.acciones}>
+        <BotonGrande
+          icono="aportar-voz"
+          etiqueta="Grabar otra frase"
+          onClick={onOtra}
+          color="#2563EB"
+        />
+        <BotonGrande
+          icono="validar"
+          etiqueta="Ir al inicio"
+          descripcion="Elegir otra actividad"
+          onClick={onInicio}
+          color="#6B7280"
+          variante="contorno"
+        />
+      </div>
+
+      <button onClick={onSalir} style={estilos.botonSalir}>
+        Soy otra persona
+      </button>
+    </div>
+  );
+}
+
 const estilos = {
-  contenedor: { maxWidth: 420, margin: '48px auto', padding: 24, fontFamily: 'sans-serif' },
-  titulo: { fontSize: 22, marginBottom: 20 },
-  resumen: { background: '#f3f4f6', padding: 16, borderRadius: 6, marginBottom: 16 },
-  enunciado: { fontStyle: 'italic', fontSize: 17, marginTop: 0 },
-  metadato: { fontSize: 13, color: '#666', marginBottom: 0 },
-  nota: { color: '#555', fontSize: 14 },
-  filaBotones: { display: 'flex', gap: 12, marginTop: 20 },
-  boton: { padding: 12, fontSize: 16, borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', flex: 1 },
-  botonSecundario: { padding: 12, fontSize: 16, borderRadius: 6, border: '1px solid #999', background: '#fff', color: '#444', cursor: 'pointer' },
-  botonTerciario: { width: '100%', padding: 10, fontSize: 14, borderRadius: 6, border: 'none', background: 'transparent', color: '#888', cursor: 'pointer', marginTop: 12 },
+  contenedor: { maxWidth: 420, margin: '32px auto', padding: 24, fontFamily: 'sans-serif' },
+  cabecera: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16 },
+  titulo: { fontSize: 25, margin: 0, textAlign: 'center' },
+  resumen: { background: '#F3F4F6', padding: 20, borderRadius: 10, marginBottom: 16 },
+  enunciado: { fontSize: 20, lineHeight: 1.4, margin: 0 },
+  detalle: { fontSize: 14, color: '#6B7280', marginTop: 10, marginBottom: 0 },
+  nota: { fontSize: 15, padding: 14, borderRadius: 8, marginBottom: 20 },
+  acciones: { display: 'flex', flexDirection: 'column', gap: 12 },
+  botonSalir: {
+    width: '100%',
+    padding: 12,
+    fontSize: 15,
+    borderRadius: 6,
+    border: 'none',
+    background: 'transparent',
+    color: '#9CA3AF',
+    cursor: 'pointer',
+    marginTop: 20,
+    fontFamily: 'inherit',
+  },
 };
 
 export default App;

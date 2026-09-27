@@ -1,8 +1,8 @@
 // frontend/src/pages/ValidarGrabaciones.jsx
 //
-// Implementa el flujo 3.2.4 del DDS ("Validación por Pares"): presenta
-// al hablante una grabación de otro miembro de la comunidad junto con
-// su transcripción, y registra su evaluación.
+// Implementa el flujo de validación por pares: presenta al hablante una
+// grabación de otro miembro de su comunidad lingüística junto con su
+// transcripción, y registra su evaluación.
 //
 // El flujo es cíclico: tras cada voto se solicita automáticamente la
 // siguiente grabación disponible, de modo que el validador puede
@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { obtenerPendiente, emitirVoto } from '../services/validacionService';
+import Icono, { BotonGrande, AvisoConIcono } from '../components/Icono';
 
 export default function ValidarGrabaciones({ idMetadatos, onSalir }) {
   const [grabacion, setGrabacion] = useState(null);
@@ -24,8 +25,7 @@ export default function ValidarGrabaciones({ idMetadatos, onSalir }) {
     setError(null);
 
     try {
-      const siguiente = await obtenerPendiente(idMetadatos);
-      setGrabacion(siguiente);
+      setGrabacion(await obtenerPendiente(idMetadatos));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -75,7 +75,26 @@ export default function ValidarGrabaciones({ idMetadatos, onSalir }) {
   if (cargando) {
     return (
       <div style={estilos.contenedor}>
-        <p style={estilos.aviso}>Buscando grabaciones por validar…</p>
+        <AvisoConIcono icono="pendiente">Buscando grabaciones…</AvisoConIcono>
+      </div>
+    );
+  }
+
+  // Un fallo al consultar el servidor no debe presentarse como "no hay
+  // nada que validar": son situaciones distintas y confundirlas oculta
+  // problemas reales de conexión o de configuración.
+  if (error && !grabacion) {
+    return (
+      <div style={estilos.contenedor}>
+        <AvisoConIcono icono="sin-conexion" color="#991B1B" fondo="#FEE2E2">
+          {error}
+        </AvisoConIcono>
+        <div style={{ marginTop: 16 }}>
+          <BotonGrande icono="volver-a-grabar" etiqueta="Intentar de nuevo" onClick={cargarSiguiente} />
+        </div>
+        <button onClick={onSalir} style={estilos.botonSalir}>
+          Volver al inicio
+        </button>
       </div>
     );
   }
@@ -83,18 +102,19 @@ export default function ValidarGrabaciones({ idMetadatos, onSalir }) {
   if (!grabacion) {
     return (
       <div style={estilos.contenedor}>
+        <div style={estilos.centrado}>
+          <Icono nombre="sin-pendientes" tamano={140} />
+        </div>
         <h1 style={estilos.titulo}>No hay grabaciones por validar</h1>
         <p style={estilos.subtitulo}>
-          Ya evaluaste todas las contribuciones disponibles de la comunidad.
-          Vuelve más tarde, cuando otros hablantes hayan aportado nuevas
-          grabaciones.
+          Ya escuchaste todas las grabaciones de tu comunidad. Vuelve más tarde.
         </p>
         {totalEvaluadas > 0 && (
           <p style={estilos.contador}>
-            Evaluaste {totalEvaluadas} grabación{totalEvaluadas === 1 ? '' : 'es'} en esta sesión.
+            Escuchaste {totalEvaluadas} grabación{totalEvaluadas === 1 ? '' : 'es'}.
           </p>
         )}
-        <button onClick={onSalir} style={estilos.botonSecundario}>
+        <button onClick={onSalir} style={estilos.botonSalir}>
           Volver al inicio
         </button>
       </div>
@@ -103,52 +123,71 @@ export default function ValidarGrabaciones({ idMetadatos, onSalir }) {
 
   return (
     <div style={estilos.contenedor}>
-      <h1 style={estilos.titulo}>Valida esta grabación</h1>
-      <p style={estilos.subtitulo}>
-        Escucha el audio y confirma si corresponde al texto y se entiende con claridad.
-      </p>
-
-      {error && <div style={estilos.error}>{error}</div>}
+      <h1 style={estilos.titulo}>Escucha y decide</h1>
 
       {ultimoResultado && (
         <div style={estilos.exito}>
-          Voto registrado.{' '}
-          {ultimoResultado.estado === 'validada' && 'La grabación anterior quedó validada.'}
-          {ultimoResultado.estado === 'rechazada' && 'La grabación anterior quedó rechazada.'}
-          {ultimoResultado.estado === 'pendiente' &&
-            `La grabación anterior lleva ${ultimoResultado.votos_positivos} a favor y ${ultimoResultado.votos_negativos} en contra.`}
+          <Icono
+            nombre={ultimoResultado.estado === 'rechazada' ? 'desaprobar' : 'aprobar'}
+            tamano={32}
+          />
+          <span>
+            {ultimoResultado.estado === 'validada' && 'La grabación anterior quedó aceptada.'}
+            {ultimoResultado.estado === 'rechazada' && 'La grabación anterior quedó descartada.'}
+            {ultimoResultado.estado === 'pendiente' && 'Tu voto quedó registrado.'}
+          </span>
         </div>
       )}
 
+      {error && <div style={estilos.error}>{error}</div>}
+
       <div style={estilos.tarjeta}>
-        <p style={estilos.enunciado}>"{grabacion.texto_transcripcion}"</p>
-        <audio src={grabacion.url_audio} controls style={{ width: '100%' }} />
-        <p style={estilos.metadato}>
-          {grabacion.votos_positivos} a favor · {grabacion.votos_negativos} en contra
-          {grabacion.duracion_segundos != null &&
-            ` · ${Number(grabacion.duracion_segundos).toFixed(1)} s`}
-        </p>
+        <div style={estilos.filaEscuchar}>
+          <Icono nombre="escuchar" tamano={36} />
+          <span style={estilos.instruccion}>Escucha</span>
+        </div>
+        <audio src={grabacion.url_audio} controls style={{ width: '100%', marginBottom: 16 }} />
+
+        <div style={estilos.separador} />
+
+        <p style={estilos.etiquetaTexto}>Dice:</p>
+        <p style={estilos.enunciado}>{grabacion.texto_transcripcion}</p>
       </div>
 
-      <div style={estilos.filaBotones}>
-        <button onClick={() => votar(true)} disabled={enviandoVoto} style={estilos.botonAprobar}>
-          👍 Aprobada
-        </button>
-        <button onClick={() => votar(false)} disabled={enviandoVoto} style={estilos.botonDesaprobar}>
-          👎 Desaprobada
-        </button>
-      </div>
+      <p style={estilos.pregunta}>¿La voz dice lo mismo que el texto y se entiende bien?</p>
 
-      <button onClick={omitir} disabled={enviandoVoto} style={estilos.botonOmitir}>
-        Omitir esta grabación
-      </button>
+      <div style={estilos.acciones}>
+        <BotonGrande
+          icono="aprobar"
+          etiqueta="Sí, está bien"
+          onClick={() => votar(true)}
+          disabled={enviandoVoto}
+          color="#16A34A"
+        />
+        <BotonGrande
+          icono="desaprobar"
+          etiqueta="No está bien"
+          onClick={() => votar(false)}
+          disabled={enviandoVoto}
+          color="#DC2626"
+        />
+        <BotonGrande
+          icono="omitir"
+          etiqueta="No estoy seguro"
+          descripcion="Pasar a la siguiente"
+          onClick={omitir}
+          disabled={enviandoVoto}
+          color="#6B7280"
+          variante="contorno"
+        />
+      </div>
 
       <p style={estilos.contador}>
-        Evaluadas en esta sesión: {totalEvaluadas}
-        {grabacion.restantes != null && ` · Disponibles: ${grabacion.restantes}`}
+        Escuchaste {totalEvaluadas}
+        {grabacion.restantes != null && ` · Faltan ${grabacion.restantes}`}
       </p>
 
-      <button onClick={onSalir} style={estilos.botonSecundario}>
+      <button onClick={onSalir} style={estilos.botonSalir}>
         Volver al inicio
       </button>
     </div>
@@ -156,19 +195,41 @@ export default function ValidarGrabaciones({ idMetadatos, onSalir }) {
 }
 
 const estilos = {
-  contenedor: { maxWidth: 420, margin: '48px auto', padding: 24, fontFamily: 'sans-serif' },
-  titulo: { fontSize: 24, marginBottom: 4 },
-  subtitulo: { color: '#555', marginBottom: 20 },
-  tarjeta: { background: '#f3f4f6', padding: 16, borderRadius: 6, marginBottom: 16 },
-  enunciado: { fontStyle: 'italic', fontSize: 18, marginTop: 0 },
-  metadato: { fontSize: 13, color: '#666', marginBottom: 0, marginTop: 12 },
-  filaBotones: { display: 'flex', gap: 12, marginBottom: 12 },
-  botonAprobar: { flex: 1, padding: 14, fontSize: 16, borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', cursor: 'pointer' },
-  botonDesaprobar: { flex: 1, padding: 14, fontSize: 16, borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', cursor: 'pointer' },
-  botonOmitir: { width: '100%', padding: 10, fontSize: 15, borderRadius: 6, border: '1px solid #ccc', background: '#fff', color: '#444', cursor: 'pointer' },
-  botonSecundario: { width: '100%', padding: 10, fontSize: 15, borderRadius: 6, border: 'none', background: 'transparent', color: '#2563eb', cursor: 'pointer', marginTop: 16 },
-  contador: { fontSize: 13, color: '#888', textAlign: 'center', marginTop: 16 },
-  aviso: { color: '#555' },
-  exito: { background: '#dcfce7', color: '#166534', padding: 12, borderRadius: 6, marginBottom: 16, fontSize: 14 },
-  error: { background: '#fee2e2', color: '#991b1b', padding: 12, borderRadius: 6, marginBottom: 16 },
+  contenedor: { maxWidth: 420, margin: '32px auto', padding: 24, fontFamily: 'sans-serif' },
+  centrado: { display: 'flex', justifyContent: 'center', marginBottom: 16 },
+  titulo: { fontSize: 24, marginBottom: 8, textAlign: 'center' },
+  subtitulo: { color: '#4B5563', marginBottom: 20, textAlign: 'center' },
+  tarjeta: { background: '#F9FAFB', padding: 20, borderRadius: 10, marginBottom: 20 },
+  filaEscuchar: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
+  instruccion: { fontSize: 17, color: '#374151' },
+  separador: { height: 1, background: '#E5E7EB', margin: '16px 0' },
+  etiquetaTexto: { fontSize: 14, color: '#6B7280', marginBottom: 6 },
+  enunciado: { fontSize: 21, lineHeight: 1.4, margin: 0 },
+  pregunta: { fontSize: 17, textAlign: 'center', marginBottom: 16, color: '#374151' },
+  acciones: { display: 'flex', flexDirection: 'column', gap: 12 },
+  contador: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 20 },
+  botonSalir: {
+    width: '100%',
+    padding: 12,
+    fontSize: 15,
+    borderRadius: 6,
+    border: 'none',
+    background: 'transparent',
+    color: '#2563EB',
+    cursor: 'pointer',
+    marginTop: 8,
+    fontFamily: 'inherit',
+  },
+  exito: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    background: '#DCFCE7',
+    color: '#166534',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    fontSize: 15,
+  },
+  error: { background: '#FEE2E2', color: '#991B1B', padding: 12, borderRadius: 8, marginBottom: 16 },
 };

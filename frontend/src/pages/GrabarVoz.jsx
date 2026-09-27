@@ -1,17 +1,15 @@
 // frontend/src/pages/GrabarVoz.jsx
 //
-// Implementa el flujo 3.2.3 del DDS ("Grabación de Audio"), incluido su
-// flujo alternativo "Grabación en modo offline": si al guardar no hay
-// conexión, la contribución se conserva en IndexedDB y se marca como
-// pendiente de sincronización.
+// Implementa el flujo de grabación de audio, incluido su flujo
+// alternativo sin conexión: si al guardar no hay conectividad, la
+// contribución se conserva en el dispositivo y se marca como pendiente
+// de sincronización.
 
 import { useState } from 'react';
 import { useGrabadorAudio } from '../hooks/useGrabadorAudio';
 import { subir } from '../services/grabacionesService';
-import {
-  guardarContribucionPendiente,
-  eliminarBorrador,
-} from '../services/almacenamientoLocal';
+import { guardarContribucionPendiente, eliminarBorrador } from '../services/almacenamientoLocal';
+import Icono, { BotonGrande, AvisoConIcono } from '../components/Icono';
 
 export default function GrabarVoz({
   idMetadatos,
@@ -40,9 +38,6 @@ export default function GrabarVoz({
       wavBlob,
     });
 
-    // La contribución completa ya está a salvo en IndexedDB: el
-    // borrador del enunciado, que se conservaba por si el hablante
-    // abandonaba antes de grabar, deja de ser necesario.
     await eliminarBorrador(idMetadatos);
 
     onGuardadaLocalmente({
@@ -56,13 +51,10 @@ export default function GrabarVoz({
     setSubiendo(true);
 
     try {
-      // Se guarda localmente en dos situaciones:
-      //   - No hay conexión.
-      //   - El enunciado nunca llegó al servidor (se redactó sin
-      //     conexión), por lo que no existe un id_transcripcion al que
-      //     asociar la grabación. En ese caso la contribución completa
-      //     debe crearse a través del endpoint de sincronización,
-      //     aunque en este momento sí haya red.
+      // Se guarda localmente en dos situaciones: cuando no hay
+      // conexión, y cuando el enunciado nunca llegó al servidor porque
+      // se redactó sin conexión, de modo que no existe un identificador
+      // al que asociar la grabación.
       if (!navigator.onLine || !transcripcion.id_transcripcion) {
         await guardarLocalmente();
         return;
@@ -75,10 +67,6 @@ export default function GrabarVoz({
       });
       onGrabacionLista(resultado);
     } catch (err) {
-      // Un fallo de red (servidor caído, wifi que se corta a mitad del
-      // envío) llega aquí como TypeError sin código de error del
-      // sistema. En ese caso también se conserva la contribución en
-      // lugar de perderla.
       const esFalloDeRed = !err.codigo;
 
       if (esFalloDeRed) {
@@ -86,7 +74,7 @@ export default function GrabarVoz({
           await guardarLocalmente();
           return;
         } catch {
-          setErrorSubida('No se pudo guardar la grabación ni enviarla al servidor.');
+          setErrorSubida('No se pudo guardar la grabación ni enviarla.');
         }
       } else {
         const detalle = err.detalles?.[0]?.problema;
@@ -100,69 +88,116 @@ export default function GrabarVoz({
   return (
     <div style={estilos.contenedor}>
       <h1 style={estilos.titulo}>Graba tu voz</h1>
-      <p style={estilos.instruccion}>Lee en voz alta el siguiente enunciado:</p>
-      <div style={estilos.enunciado}>"{transcripcion.texto_transcripcion}"</div>
+
+      {/* El enunciado se presenta en tamaño grande porque el hablante
+          debe leerlo en voz alta mientras graba. */}
+      <div style={estilos.enunciado}>{transcripcion.texto_transcripcion}</div>
 
       {(errorGrabador || errorSubida) && (
         <div style={estilos.error}>{errorGrabador || errorSubida}</div>
       )}
 
       {estado === 'inactivo' && (
-        <button onClick={iniciarGrabacion} style={estilos.boton}>
-          🎙️ Grabar
-        </button>
+        <>
+          <p style={estilos.instruccion}>Lee la frase en voz alta</p>
+          <BotonGrande
+            icono="grabar"
+            etiqueta="Grabar"
+            onClick={iniciarGrabacion}
+            color="#DC2626"
+          />
+        </>
       )}
 
       {estado === 'grabando' && (
         <>
-          <p style={estilos.grabando}>● Grabando…</p>
-          <button onClick={detenerGrabacion} style={estilos.botonDetener}>
-            ⏹️ Detener
-          </button>
+          <div style={estilos.grabandoAviso}>
+            <span style={estilos.puntoRojo} />
+            Grabando…
+          </div>
+          <BotonGrande
+            icono="detener"
+            etiqueta="Detener"
+            onClick={detenerGrabacion}
+            color="#DC2626"
+            variante="contorno"
+          />
         </>
       )}
 
       {estado === 'procesando' && (
-        <p style={estilos.aviso}>Convirtiendo el audio al formato del corpus…</p>
+        <AvisoConIcono icono="pendiente">Preparando tu grabación…</AvisoConIcono>
       )}
 
       {estado === 'listo' && (
-        <div style={estilos.formulario}>
-          <p style={estilos.instruccion}>Escucha tu grabación antes de guardarla:</p>
-          <audio src={audioUrl} controls style={{ width: '100%' }} />
-
-          {duracionSegundos != null && (
-            <p style={estilos.duracion}>
-              Duración: {duracionSegundos.toFixed(1)} s · WAV 16 kHz mono
-            </p>
-          )}
-
-          <div style={estilos.filaBotones}>
-            <button onClick={manejarGuardar} disabled={subiendo} style={estilos.boton}>
-              {subiendo ? 'Guardando…' : 'Guardar'}
-            </button>
-            <button onClick={volverAGrabar} disabled={subiendo} style={estilos.botonSecundario}>
-              Volver a grabar
-            </button>
+        <>
+          <div style={estilos.reproductor}>
+            <div style={estilos.filaEscuchar}>
+              <Icono nombre="escuchar" tamano={40} />
+              <span style={estilos.instruccion}>Escucha antes de guardar</span>
+            </div>
+            <audio src={audioUrl} controls style={{ width: '100%' }} />
+            {duracionSegundos != null && (
+              <p style={estilos.duracion}>{duracionSegundos.toFixed(1)} segundos</p>
+            )}
           </div>
-        </div>
+
+          <div style={estilos.acciones}>
+            <BotonGrande
+              icono="guardar"
+              etiqueta="Guardar"
+              onClick={manejarGuardar}
+              disabled={subiendo}
+              color="#16A34A"
+            />
+            <BotonGrande
+              icono="volver-a-grabar"
+              etiqueta="Grabar otra vez"
+              onClick={volverAGrabar}
+              disabled={subiendo}
+              color="#F59E0B"
+              variante="contorno"
+            />
+          </div>
+        </>
       )}
     </div>
   );
 }
 
 const estilos = {
-  contenedor: { maxWidth: 420, margin: '48px auto', padding: 24, fontFamily: 'sans-serif' },
-  titulo: { fontSize: 24, marginBottom: 4 },
-  instruccion: { color: '#555', marginBottom: 8 },
-  enunciado: { background: '#f3f4f6', padding: 16, borderRadius: 6, fontStyle: 'italic', fontSize: 18, marginBottom: 24 },
-  formulario: { display: 'flex', flexDirection: 'column', gap: 12 },
-  boton: { padding: 12, fontSize: 16, borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' },
-  botonDetener: { padding: 12, fontSize: 16, borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', cursor: 'pointer', width: '100%' },
-  botonSecundario: { padding: 12, fontSize: 16, borderRadius: 6, border: '1px solid #2563eb', background: '#fff', color: '#2563eb', cursor: 'pointer' },
-  filaBotones: { display: 'flex', gap: 12 },
-  grabando: { color: '#dc2626', fontWeight: 'bold' },
-  duracion: { fontSize: 13, color: '#666' },
-  aviso: { color: '#555' },
-  error: { background: '#fee2e2', color: '#991b1b', padding: 12, borderRadius: 6, marginBottom: 16 },
+  contenedor: { maxWidth: 420, margin: '32px auto', padding: 24, fontFamily: 'sans-serif' },
+  titulo: { fontSize: 24, marginBottom: 16 },
+  enunciado: {
+    background: '#F3F4F6',
+    padding: 20,
+    borderRadius: 10,
+    fontSize: 22,
+    lineHeight: 1.4,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  instruccion: { color: '#4B5563', fontSize: 16, marginBottom: 12 },
+  reproductor: { background: '#F9FAFB', padding: 16, borderRadius: 10, marginBottom: 16 },
+  filaEscuchar: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
+  duracion: { fontSize: 14, color: '#6B7280', marginTop: 8, marginBottom: 0 },
+  acciones: { display: 'flex', flexDirection: 'column', gap: 12 },
+  grabandoAviso: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    color: '#DC2626',
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 16,
+  },
+  puntoRojo: {
+    width: 14,
+    height: 14,
+    borderRadius: '50%',
+    background: '#DC2626',
+    display: 'inline-block',
+  },
+  error: { background: '#FEE2E2', color: '#991B1B', padding: 12, borderRadius: 8, marginBottom: 16 },
 };

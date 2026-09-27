@@ -1,39 +1,48 @@
 // frontend/src/pages/SeleccionarActividad.jsx
 //
 // Punto de entrada del sistema. Implementa el caso de uso
-// "Seleccionar actividad" (ERS §2.1.2.1) y el flujo 3.2.1 del DDS.
+// "Seleccionar actividad".
 //
 // Se presenta antes de la identificación: el hablante elige primero
-// qué desea hacer y solo entonces se le solicita su DNI. Esta pantalla
-// no realiza peticiones al Backend.
+// qué desea hacer y solo entonces se le solicita su documento. Esta
+// pantalla no realiza peticiones al servidor.
+
+import Icono, { BotonGrande } from '../components/Icono';
 
 export default function SeleccionarActividad({ onContribuir, onValidar, onAdministrar }) {
   return (
     <div style={estilos.contenedor}>
       <h1 style={estilos.titulo}>NampiVoz</h1>
+
+      {/* La ilustración comunica de un vistazo la idea del sistema:
+          una comunidad donde unos aportan su voz y otros escuchan para
+          validarla. Precede al texto porque es lo primero que puede
+          interpretar quien no lee con fluidez. */}
+      <div style={estilos.ilustracion}>
+        <Icono nombre="bienvenida" tamano={280} estilo={{ width: '100%', height: 'auto' }} />
+      </div>
+
       <p style={estilos.subtitulo}>
         Ayuda a documentar tu lengua originaria. ¿Qué quieres hacer?
       </p>
 
-      <button onClick={onContribuir} style={estilos.opcion}>
-        <span style={estilos.icono}>🎙️</span>
-        <span>
-          <strong style={estilos.tituloOpcion}>Aportar mi voz</strong>
-          <span style={estilos.descripcionOpcion}>
-            Escribe una frase en tu lengua y grábala
-          </span>
-        </span>
-      </button>
+      <div style={estilos.opciones}>
+        <BotonGrande
+          icono="aportar-voz"
+          etiqueta="Aportar mi voz"
+          descripcion="Escribe una frase y grábala"
+          onClick={onContribuir}
+          color="#2563EB"
+        />
 
-      <button onClick={onValidar} style={estilos.opcion}>
-        <span style={estilos.icono}>👂</span>
-        <span>
-          <strong style={estilos.tituloOpcion}>Validar grabaciones</strong>
-          <span style={estilos.descripcionOpcion}>
-            Escucha las contribuciones de otros y evalúalas
-          </span>
-        </span>
-      </button>
+        <BotonGrande
+          icono="validar"
+          etiqueta="Validar grabaciones"
+          descripcion="Escucha a otros y evalúa"
+          onClick={onValidar}
+          color="#16A34A"
+        />
+      </div>
 
       <button onClick={onAdministrar} style={estilos.enlaceAdmin}>
         Administración
@@ -43,26 +52,21 @@ export default function SeleccionarActividad({ onContribuir, onValidar, onAdmini
 }
 
 const estilos = {
-  contenedor: { maxWidth: 420, margin: '48px auto', padding: 24, fontFamily: 'sans-serif' },
-  titulo: { fontSize: 28, marginBottom: 4 },
-  subtitulo: { color: '#555', marginBottom: 28 },
-  opcion: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
+  contenedor: { maxWidth: 420, margin: '32px auto', padding: 24, fontFamily: 'sans-serif' },
+  titulo: { fontSize: 30, marginBottom: 8, textAlign: 'center' },
+  ilustracion: { display: 'flex', justifyContent: 'center', marginBottom: 16 },
+  subtitulo: { color: '#4B5563', marginBottom: 24, textAlign: 'center', fontSize: 16 },
+  opciones: { display: 'flex', flexDirection: 'column', gap: 16 },
+  enlaceAdmin: {
     width: '100%',
-    padding: 20,
-    marginBottom: 12,
-    fontSize: 16,
-    textAlign: 'left',
-    borderRadius: 8,
-    border: '1px solid #d1d5db',
-    background: '#fff',
+    padding: 10,
+    fontSize: 13,
+    borderRadius: 6,
+    border: 'none',
+    background: 'transparent',
+    color: '#9CA3AF',
     cursor: 'pointer',
+    marginTop: 32,
     fontFamily: 'inherit',
   },
-  icono: { fontSize: 32 },
-  tituloOpcion: { display: 'block', fontSize: 17, marginBottom: 2 },
-  descripcionOpcion: { display: 'block', fontSize: 14, color: '#666' },
-  enlaceAdmin: { width: '100%', padding: 10, fontSize: 13, borderRadius: 6, border: 'none', background: 'transparent', color: '#9ca3af', cursor: 'pointer', marginTop: 24 },
 };

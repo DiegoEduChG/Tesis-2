@@ -21,6 +21,11 @@ export function useGrabadorAudio() {
   const [duracionSegundos, setDuracionSegundos] = useState(null);
   const [error, setError] = useState(null);
 
+  // Resultado del recorte de silencios. No se muestra al hablante —el
+  // recorte debe ser transparente para él— pero queda disponible para
+  // el registro de las sesiones de la prueba piloto.
+  const [recorte, setRecorte] = useState(null);
+
   const mediaRecorderRef = useRef(null);
   const fragmentosRef = useRef([]);
   const streamRef = useRef(null);
@@ -50,11 +55,24 @@ export function useGrabadorAudio() {
         });
 
         try {
-          const { blob, duracionSegundos: duracion } = await convertirBlobAWav(blobOriginal);
+          const {
+            blob,
+            duracionSegundos: duracion,
+            recorte: resultadoRecorte,
+          } = await convertirBlobAWav(blobOriginal);
+
           setWavBlob(blob);
           setDuracionSegundos(duracion);
+          setRecorte(resultadoRecorte);
           setAudioUrl(URL.createObjectURL(blob));
           setEstado('listo');
+
+          if (!resultadoRecorte.aplicado) {
+            // Sirve para diagnosticar en campo por qué una grabación
+            // conservó sus silencios: casi siempre será ruido de fondo
+            // elevado en el lugar de la sesión.
+            console.info('Silencios no recortados:', resultadoRecorte.motivo);
+          }
         } catch (err) {
           console.error('Error al convertir el audio a WAV:', err);
           setError('No se pudo procesar el audio grabado. Intenta nuevamente.');
@@ -86,6 +104,7 @@ export function useGrabadorAudio() {
     setAudioUrl(null);
     setWavBlob(null);
     setDuracionSegundos(null);
+    setRecorte(null);
     setEstado('inactivo');
   }
 
@@ -94,6 +113,7 @@ export function useGrabadorAudio() {
     audioUrl,
     wavBlob,
     duracionSegundos,
+    recorte,
     error,
     iniciarGrabacion,
     detenerGrabacion,

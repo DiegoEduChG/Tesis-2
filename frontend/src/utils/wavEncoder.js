@@ -21,7 +21,8 @@
 //      (AudioContext.decodeAudioData).
 //   2. Remuestrear a 16 kHz y reducir a un canal
 //      (OfflineAudioContext: procesa el audio sin reproducirlo).
-//   3. Escribir la cabecera RIFF/WAVE y volcar las muestras como
+//   3. Recortar el silencio inicial y final (utils/recorteSilencio.js).
+//   4. Escribir la cabecera RIFF/WAVE y volcar las muestras como
 //      enteros PCM de 16 bits.
 //
 // El backend vuelve a verificar estos mismos parámetros sobre el archivo
@@ -33,6 +34,8 @@
 // las constantes del validador del backend y con lo especificado en el
 // ERS §3.5. Se exportan para que las pruebas unitarias puedan
 // verificarlos sin duplicar literales.
+import { recortarSilencio } from './recorteSilencio';
+
 export const FRECUENCIA_MUESTREO = 16000;
 export const BITS_POR_MUESTRA = 16;
 export const NUMERO_CANALES = 1;
@@ -41,7 +44,10 @@ const TAMANO_CABECERA = 44;
 
 /**
  * @param {Blob} blobOriginal El blob que entrega MediaRecorder.
- * @returns {Promise<{blob: Blob, duracionSegundos: number}>}
+ * @returns {Promise<{blob: Blob, duracionSegundos: number, recorte: object}>}
+ *   `duracionSegundos` corresponde al audio ya recortado, que es el que
+ *   se almacena: es esa duración, y no la del audio en bruto, la que
+ *   debe contabilizarse en el corpus.
  */
 export async function convertirBlobAWav(blobOriginal) {
   const ContextoAudio = window.AudioContext || window.webkitAudioContext;
@@ -51,12 +57,22 @@ export async function convertirBlobAWav(blobOriginal) {
     const arrayBuffer = await blobOriginal.arrayBuffer();
     const audioOriginal = await contexto.decodeAudioData(arrayBuffer);
 
-    const muestras = await remuestrearAMono16k(audioOriginal);
+    const muestrasCompletas = await remuestrearAMono16k(audioOriginal);
+
+    // El recorte se aplica sobre la señal ya remuestreada a 16 kHz, no
+    // sobre el audio original: así el análisis por ventanas trabaja con
+    // la misma frecuencia con la que se escribirá el archivo, y no hay
+    // que convertir índices de muestra entre dos frecuencias distintas.
+    const { muestras, recorte } = recortarSilencio(muestrasCompletas, {
+      frecuenciaMuestreo: FRECUENCIA_MUESTREO,
+    });
+
     const blob = codificarPcmComoWav(muestras);
 
     return {
       blob,
       duracionSegundos: muestras.length / FRECUENCIA_MUESTREO,
+      recorte,
     };
   } finally {
     // Se cierra el contexto pase lo que pase: cada AudioContext abierto

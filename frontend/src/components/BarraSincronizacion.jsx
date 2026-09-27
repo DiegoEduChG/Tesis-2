@@ -15,6 +15,7 @@ import {
   sincronizarPendientes,
   iniciarSincronizacionAutomatica,
 } from '../services/sincronizacionService';
+import Icono from './Icono';
 
 export default function BarraSincronizacion() {
   const [enLinea, setEnLinea] = useState(navigator.onLine);
@@ -66,7 +67,9 @@ export default function BarraSincronizacion() {
 
   return (
     <div style={enLinea ? estilos.barraPendiente : estilos.barraSinConexion}>
-      {!enLinea && <span>Sin conexión. Tus grabaciones se guardan en este dispositivo.</span>}
+      <Icono nombre={enLinea ? 'guardado-local' : 'sin-conexion'} tamano={32} />
+
+      {!enLinea && <span>Sin conexión. Tus grabaciones se guardan en este teléfono.</span>}
 
       {pendientes > 0 && (
         <span>

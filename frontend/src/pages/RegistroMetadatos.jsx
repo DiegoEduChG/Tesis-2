@@ -13,6 +13,7 @@
 import { useState } from 'react';
 import { consultarPorDni, registrar } from '../services/metadatosService';
 import { RANGOS_EDAD, GENEROS, LENGUAS } from '../config/catalogos';
+import Icono, { BotonGrande, AvisoConIcono } from '../components/Icono';
 
 // Los cuatro "momentos" de la pantalla, según el flujo del DDS.
 const ETAPA = {
@@ -118,18 +119,22 @@ export default function RegistroMetadatos({ actividad, onHablanteListo, onVolver
 
   return (
     <div style={estilos.contenedor}>
-      <h1 style={estilos.titulo}>Identifícate</h1>
+      <div style={estilos.cabecera}>
+        <Icono nombre="documento" tamano={96} />
+        <h1 style={estilos.titulo}>Tu documento</h1>
+      </div>
+
       <p style={estilos.subtitulo}>
         {actividad === 'VALIDAR'
-          ? 'Necesitamos saber quién eres para mostrarte grabaciones de otros hablantes.'
-          : 'Necesitamos saber quién eres para asociar tus contribuciones al corpus.'}
+          ? 'Necesitamos saber quién eres para mostrarte las grabaciones de tu comunidad.'
+          : 'Necesitamos saber quién eres para guardar tus grabaciones.'}
       </p>
 
       {error && <div style={estilos.error}>{error}</div>}
 
       {etapa === ETAPA.INGRESAR_DNI && (
         <form onSubmit={manejarConsultaDni} style={estilos.formulario}>
-          <label style={estilos.etiqueta}>Ingresa tu DNI</label>
+          <label style={estilos.etiqueta}>Escribe tu número de DNI</label>
           <input
             type="text"
             inputMode="numeric"
@@ -199,9 +204,9 @@ export default function RegistroMetadatos({ actividad, onHablanteListo, onVolver
       )}
 
       {etapa === ETAPA.LISTO && (
-        <div style={estilos.formulario}>
-          <p>✅ Identificación completa.</p>
-        </div>
+        <AvisoConIcono icono="validada" color="#166534" fondo="#DCFCE7">
+          Listo, ya te reconocemos.
+        </AvisoConIcono>
       )}
 
       {onVolver && (
@@ -216,14 +221,15 @@ export default function RegistroMetadatos({ actividad, onHablanteListo, onVolver
 // Estilos en línea, suficientes para el prototipo. Si más adelante se
 // documenta una librería de estilos en el DDS, migrar aquí.
 const estilos = {
-  contenedor: { maxWidth: 420, margin: '48px auto', padding: 24, fontFamily: 'sans-serif' },
-  titulo: { fontSize: 28, marginBottom: 4 },
-  subtitulo: { color: '#555', marginBottom: 24 },
+  contenedor: { maxWidth: 420, margin: '32px auto', padding: 24, fontFamily: 'sans-serif' },
+  cabecera: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 8 },
+  titulo: { fontSize: 26, margin: 0 },
+  subtitulo: { color: '#4B5563', marginBottom: 24, textAlign: 'center', fontSize: 16 },
   formulario: { display: 'flex', flexDirection: 'column', gap: 12 },
-  etiqueta: { fontWeight: 'bold', marginTop: 8 },
-  input: { padding: 10, fontSize: 16, borderRadius: 6, border: '1px solid #ccc' },
-  boton: { padding: 12, fontSize: 16, borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' },
-  botonSecundario: { padding: 12, fontSize: 16, borderRadius: 6, border: '1px solid #2563eb', background: '#fff', color: '#2563eb', cursor: 'pointer' },
+  etiqueta: { fontWeight: 600, marginTop: 12, fontSize: 17 },
+  input: { padding: 14, fontSize: 20, borderRadius: 8, border: '2px solid #D1D5DB' },
+  boton: { minHeight: 60, padding: 14, fontSize: 18, fontWeight: 600, borderRadius: 10, border: 'none', background: '#2563EB', color: '#fff', cursor: 'pointer', marginTop: 12, fontFamily: 'inherit' },
+  botonSecundario: { minHeight: 60, padding: 14, fontSize: 18, fontWeight: 600, borderRadius: 10, border: '2px solid #6B7280', background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' },
   filaBotones: { display: 'flex', gap: 12 },
   listaDatos: { background: '#f3f4f6', padding: 16, borderRadius: 6, listStyle: 'none' },
   error: { background: '#fee2e2', color: '#991b1b', padding: 12, borderRadius: 6, marginBottom: 16 },
