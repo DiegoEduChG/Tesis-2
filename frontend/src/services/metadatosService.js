@@ -5,7 +5,7 @@
 // (2.2.1.1): es el único que hace peticiones HTTP; los componentes de
 // interfaz no llaman a fetch directamente.
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '../config/api.js';
 
 /**
  * Consulta si existe un hablante registrado con ese DNI.

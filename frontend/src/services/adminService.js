@@ -6,7 +6,8 @@
 // lo que reduce la ventana de exposición si el dispositivo queda
 // desatendido.
 
-const API_BASE = 'http://localhost:3000/api/admin';
+import { API_BASE } from '../config/api.js';
+const ADMIN_API_BASE = `${API_BASE}/admin`;
 
 let tokenSesion = null;
 
@@ -27,7 +28,7 @@ export function haySesion() {
  * normaliza el tratamiento de errores.
  */
 async function peticion(ruta, opciones = {}) {
-  const respuesta = await fetch(`${API_BASE}${ruta}`, {
+  const respuesta = await fetch(`${ADMIN_API_BASE}${ruta}`, {
     ...opciones,
     headers: {
       ...(opciones.headers || {}),
@@ -50,7 +51,7 @@ async function peticion(ruta, opciones = {}) {
 // ---------------------------------------------------------------------
 
 export async function iniciarSesion(usuario, contrasena) {
-  const respuesta = await fetch(`${API_BASE}/sesion`, {
+  const respuesta = await fetch(`${ADMIN_API_BASE}/sesion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usuario, contrasena }),
@@ -126,7 +127,7 @@ export function editarHablante(idMetadatos, datos) {
 export async function exportarCorpus(lengua) {
   const parametros = lengua ? `?lengua=${encodeURIComponent(lengua)}` : '';
 
-  const respuesta = await fetch(`${API_BASE}/exportacion${parametros}`, {
+  const respuesta = await fetch(`${ADMIN_API_BASE}/exportacion${parametros}`, {
     headers: { Authorization: `Bearer ${tokenSesion}` },
   });
 

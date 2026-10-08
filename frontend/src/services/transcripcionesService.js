@@ -1,6 +1,6 @@
 // frontend/src/services/transcripcionesService.js
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '../config/api.js';
 
 /**
  * Registra el enunciado redactado por el hablante.

@@ -1,6 +1,6 @@
 // frontend/src/services/grabacionesService.js
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '../config/api.js';
 
 /**
  * Sube la grabación de voz al servidor.
